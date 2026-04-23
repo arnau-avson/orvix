@@ -89,3 +89,30 @@ que no emite `BTN_TOUCH`). La rama de `BTN_TOUCH` sigue ahi por si un dispositiv
 real lo emite, pero hay que confirmar con `getevent -l` en el movil que
 `ABS_MT_TRACKING_ID` sigue apareciendo — en protocolo B es obligatorio, asi que
 deberia funcionar.
+
+### 5. Auto-arranque tras reboot del dispositivo
+
+En el emulador el watchdog de [start.ps1](start.ps1) se encarga: vigila desde el
+host y re-lanza el binario cada vez que el emulador reaparece. Esto funciona
+porque el host ejecuta `adb shell /data/local/tmp/lens` y renueva el
+`adb reverse` tras cada reconexion.
+
+En movil real enchufado por USB esa misma estrategia podria valer — el host
+sigue viendo al dispositivo por adb, sigue pudiendo renovar `adb reverse` y
+re-lanzar el binario. Pero:
+
+- Requiere que el movil siga conectado por USB al PC (y con depuracion USB
+  autorizada).
+- Requiere haber resuelto el bloqueante del TODO #0 (permisos para leer
+  `/dev/input/event*`).
+
+Para autonomia sin PC, la unica via es la app Android:
+
+- `BroadcastReceiver` de `android.intent.action.BOOT_COMPLETED` con permiso
+  `RECEIVE_BOOT_COMPLETED` en el manifest.
+- Foreground service con notificacion persistente para que el sistema no lo
+  mate por politicas de batteria (DOZE, App Standby, etc.).
+- El service lanza el binario o implementa la misma logica en Java/Kotlin.
+- Aun asi, apps de fabricante (OPPO/MIUI) tienen "autostart manager" propio
+  que puede bloquear `BOOT_COMPLETED`; hay que instruir al usuario a
+  permitir el autoinicio manualmente en los ajustes.

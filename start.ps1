@@ -102,14 +102,46 @@ Step "subiendo binario nativo a /data/local/tmp/lens..."
 & adb shell chmod 755 /data/local/tmp/lens
 Ok "binario nativo en el dispositivo."
 
-# ---- 8) lanzar streaming de screenshots desde el binario nativo --------------
+# ---- 8) watchdog: re-lanza lens cada vez que el emulador reaparece -----------
 $EndpointUrl = "http://127.0.0.1:$ReceiverPort/upload"
-Step "abriendo ventana del streaming de screenshots + taps ($IntervalMs ms)..."
+Step "abriendo watchdog (re-arranca lens tras cada reinicio del emulador)..."
+
+$WatchCmd = @"
+`$adb = `"$Sdk\platform-tools\adb.exe`"
+`$Binary = `"$MobileDir\lens`"
+`$EndpointUrl = `"$EndpointUrl`"
+`$IntervalMs = $IntervalMs
+
+function Info(`$m) { Write-Host `"[watch] `$m`" -ForegroundColor Cyan }
+function Warn(`$m) { Write-Host `"[watch] `$m`" -ForegroundColor Yellow }
+function Ok(`$m)   { Write-Host `"[watch] `$m`" -ForegroundColor Green }
+
+while (`$true) {
+    Info 'esperando dispositivo adb...'
+    & `$adb wait-for-device
+
+    Info 'esperando boot del sistema...'
+    `$booted = ''
+    while (`$booted -ne '1') {
+        Start-Sleep -Seconds 2
+        `$booted = ((& `$adb shell getprop sys.boot_completed 2>`$null) | Out-String).Trim()
+    }
+
+    Info 'adb reverse + push + chmod (idempotentes)...'
+    & `$adb reverse tcp:$ReceiverPort tcp:$ReceiverPort | Out-Null
+    & `$adb push `$Binary /data/local/tmp/ | Out-Null
+    & `$adb shell chmod 755 /data/local/tmp/lens
+
+    Ok 'dispositivo listo, lanzando lens tap-stream...'
+    & `$adb shell /data/local/tmp/lens tap-stream `$EndpointUrl `$IntervalMs
+
+    Warn 'lens salio (emulador apagado o desconectado). Re-esperando...'
+    Start-Sleep -Seconds 2
+}
+"@
+
 Start-Process powershell -ArgumentList @(
-    "-NoExit", "-Command",
-    "cd '$ProjectDir'; " +
-    "`$env:Path = '$env:Path'; " +
-    "adb shell /data/local/tmp/lens tap-stream $EndpointUrl $IntervalMs"
+    "-NoExit", "-Command", $WatchCmd
 ) | Out-Null
 
 Write-Host ""
@@ -117,8 +149,9 @@ Ok "todo en marcha."
 Write-Host "  - Ventana 1: emulador OPPO A5 Pro 5G (n92u)"
 Write-Host "  - Ventana 2: backend HTTP en puerto $ReceiverPort"
 Write-Host "                 screenshots:    $ServerDir\screenshot\"
-Write-Host "  - Ventana 3: streaming nativo lens tap-stream -> $EndpointUrl cada $IntervalMs ms"
+Write-Host "  - Ventana 3: watchdog (re-arranca lens automaticamente tras cada boot)"
 Write-Host ""
 Write-Host "Status:  http://localhost:$ReceiverPort/"
 Write-Host ""
-Write-Host "Para parar todo:  .\stop.ps1"
+Write-Host "Puedes cerrar y reabrir el emulador libremente — el watchdog re-conecta."
+Write-Host "Para parar todo:  .\stop.ps1  (+ cerrar a mano backend y watchdog)"
