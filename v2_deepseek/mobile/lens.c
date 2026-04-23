@@ -1,5 +1,6 @@
 /*
  * lens.c - native screenshot streamer with tap-overlay support
+ * Versión 2: incluye detección de root y permisos.
  *
  * Modos:
  *   lens shot       URL                 una captura
@@ -8,10 +9,10 @@
  *
  * URL debe ser http://... (no HTTPS). Ej: http://192.168.1.100:8080/upload
  *
- * Compilación para Android (x86_64):
- *   x86_64-linux-android30-clang -O3 -Wall -Wextra -std=c11 -o lens lens.c
+ * Compilación para Android:
+ *   Para x86_64 (emulador): x86_64-linux-android30-clang -O3 -Wall -Wextra -std=c11 -o lens lens.c
+ *   Para ARM64 (móviles reales): aarch64-linux-android30-clang -O3 -Wall -Wextra -std=c11 -o lens lens.c
  */
-
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +29,67 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <dirent.h>
+
+// ========== DETECCIÓN DE ROOT ==========
+int check_root_uid() { return (getuid() == 0); }
+
+int check_root_su() {
+    const char* su_paths[] = {
+        "/system/bin/su", "/system/xbin/su", "/system/bin/.ext/.su",
+        "/sbin/su", "/data/local/xbin/su", "/data/local/bin/su",
+        "/system/sd/xbin/su", "/su/bin/su", "/magisk/.core/bin/su",
+        "/data/adb/magisk/magisk", NULL
+    };
+    for (int i = 0; su_paths[i]; i++)
+        if (access(su_paths[i], F_OK) == 0) return 1;
+    return 0;
+}
+
+int check_root_exec() {
+    FILE *fp = popen("su -c id 2>/dev/null", "r");
+    if (!fp) return 0;
+    char buf[64];
+    int has_root = 0;
+    if (fgets(buf, sizeof(buf), fp))
+        if (strstr(buf, "uid=0") || strstr(buf, "uid=0(root)")) has_root = 1;
+    pclose(fp);
+    return has_root;
+}
+
+int has_getevent_access() {
+    FILE *fp = popen("getevent -h 2>&1", "r");
+    if (!fp) return 0;
+    char buf[16];
+    int success = (fread(buf, 1, 1, fp) == 1);
+    pclose(fp);
+    return success;
+}
+
+int has_screencap_access() {
+    FILE *fp = popen("screencap -h 2>&1", "r");
+    if (!fp) return 0;
+    char buf[16];
+    int success = (fread(buf, 1, 1, fp) == 1);
+    pclose(fp);
+    return success;
+}
+
+int is_device_rooted() {
+    return check_root_uid() || check_root_su() || check_root_exec();
+}
+
+void show_permission_info() {
+    printf("\n========== PERMISOS ==========\n");
+    printf("UID: %d\n", getuid());
+    printf("Root: %s\n", is_device_rooted() ? "SI ✓" : "NO ✗");
+    printf("screencap: %s\n", has_screencap_access() ? "OK ✓" : "FALLO ✗");
+    printf("getevent:  %s\n", has_getevent_access() ? "OK ✓" : "FALLO ✗");
+    if (!has_getevent_access())
+        printf("\n⚠️  getevent no disponible. Las coordenadas NO se capturarán.\n");
+    printf("================================\n\n");
+}
+// ========== FIN DETECCIÓN ==========
 
 typedef struct {
     char host[256];
@@ -41,8 +103,6 @@ typedef struct {
     int touch_down;
 } tap_state_t;
 
-/* ---------- helpers de URL y HTTP ---------- */
-
 static int parse_url(const char *s, url_t *u) {
     if (strncmp(s, "http://", 7) != 0) return -1;
     s += 7;
@@ -50,8 +110,8 @@ static int parse_url(const char *s, url_t *u) {
     const char *slash = strchr(s, '/');
     const char *hostend;
     if (colon && (!slash || colon < slash)) hostend = colon;
-    else if (slash)                          hostend = slash;
-    else                                     hostend = s + strlen(s);
+    else if (slash) hostend = slash;
+    else hostend = s + strlen(s);
     size_t hlen = (size_t)(hostend - s);
     if (hlen == 0 || hlen >= sizeof u->host) return -1;
     memcpy(u->host, s, hlen); u->host[hlen] = 0;
@@ -98,8 +158,6 @@ static int send_all(int fd, const void *buf, size_t n) {
     }
     return 0;
 }
-
-/* ---------- captura de pantalla (screencap -p) ---------- */
 
 static char *capture_png(size_t *out_len) {
     int p[2];
@@ -154,8 +212,7 @@ static int post_png(const url_t *u, const char *path, const char *png, size_t le
         path, u->host, u->port, len);
     if (hl <= 0 || (size_t)hl >= sizeof hdr) { close(sock); return -1; }
     int rc = -1;
-    if (send_all(sock, hdr, (size_t)hl) == 0 &&
-        send_all(sock, png, len) == 0) {
+    if (send_all(sock, hdr, (size_t)hl) == 0 && send_all(sock, png, len) == 0) {
         char resp[256];
         ssize_t rn = recv(sock, resp, sizeof resp - 1, 0);
         if (rn > 0) {
@@ -170,8 +227,6 @@ static int post_png(const url_t *u, const char *path, const char *png, size_t le
     return rc;
 }
 
-/* ---------- obtener paquete de la app en primer plano ---------- */
-
 static void get_current_app(char *out, size_t outlen) {
     out[0] = '\0';
     int p[2];
@@ -184,8 +239,7 @@ static void get_current_app(char *out, size_t outlen) {
         int dn = open("/dev/null", O_WRONLY | O_CLOEXEC);
         if (dn >= 0) { dup2(dn, STDERR_FILENO); close(dn); }
         close(p[1]);
-        execl("/system/bin/sh", "sh", "-c",
-              "dumpsys window | grep -m1 mCurrentFocus", (char *)NULL);
+        execl("/system/bin/sh", "sh", "-c", "dumpsys window | grep -m1 mCurrentFocus", (char *)NULL);
         _exit(127);
     }
     close(p[1]);
@@ -206,8 +260,7 @@ static void get_current_app(char *out, size_t outlen) {
     if (!u0) return;
     const char *pkg = u0 + 4;
     const char *end = pkg;
-    while (*end && *end != '/' && *end != '}' && *end != ' ' &&
-           *end != '\r' && *end != '\n') end++;
+    while (*end && *end != '/' && *end != '}' && *end != ' ' && *end != '\r' && *end != '\n') end++;
     size_t len = (size_t)(end - pkg);
     if (len == 0 || len >= outlen) return;
     memcpy(out, pkg, len);
@@ -227,8 +280,7 @@ static int do_capture(const url_t *u, int tap_x, int tap_y) {
     if (pos < 0 || pos >= (int)sizeof path) { free(png); return -1; }
     char sep = strchr(u->path, '?') ? '&' : '?';
     if (tap_x >= 0 && tap_y >= 0) {
-        int w = snprintf(path + pos, sizeof path - pos,
-                         "%cx=%d&y=%d", sep, tap_x, tap_y);
+        int w = snprintf(path + pos, sizeof path - pos, "%cx=%d&y=%d", sep, tap_x, tap_y);
         if (w > 0 && pos + w < (int)sizeof path) { pos += w; sep = '&'; }
     }
     if (app[0] && pos < (int)sizeof path - 1) {
@@ -239,8 +291,6 @@ static int do_capture(const url_t *u, int tap_x, int tap_y) {
     free(png);
     return rc;
 }
-
-/* ---------- lectura de toques (getevent -l) ---------- */
 
 static long now_ms(void) {
     struct timespec ts;
@@ -290,28 +340,21 @@ static int cmd_tap_stream(const url_t *u, int interval_ms) {
     close(p[1]);
     int fd = p[0];
     fcntl(fd, F_SETFL, O_NONBLOCK);
-
-    printf("tap-stream: periodicas cada %d ms + por tap, -> http://%s:%d%s\n",
-           interval_ms, u->host, u->port, u->path);
-    printf("(getevent en pid=%d, lee /dev/input/event*)\n", pid);
-
+    printf("tap-stream: periodicas cada %d ms + por tap, -> http://%s:%d%s\n", interval_ms, u->host, u->port, u->path);
     char line_buf[1024];
     size_t line_pos = 0;
     tap_state_t st = {0};
     long last_periodic = now_ms();
     unsigned long n_periodic = 0;
-
     for (;;) {
         long elapsed = now_ms() - last_periodic;
         long remain = interval_ms - elapsed;
         if (remain < 0) remain = 0;
-
         struct timeval tv = { remain / 1000, (remain % 1000) * 1000 };
         fd_set rfds;
         FD_ZERO(&rfds);
         FD_SET(fd, &rfds);
         int rv = select(fd + 1, &rfds, NULL, NULL, &tv);
-
         if (rv > 0 && FD_ISSET(fd, &rfds)) {
             char buf[4096];
             ssize_t n = read(fd, buf, sizeof buf);
@@ -333,20 +376,17 @@ static int cmd_tap_stream(const url_t *u, int interval_ms) {
                 }
             }
         }
-
         if (now_ms() - last_periodic >= interval_ms) {
-            if (do_capture(u, -1, -1) == 0) {
-                printf("[periodic %lu] OK\n", n_periodic++);
-            }
+            if (do_capture(u, -1, -1) == 0) printf("[periodic %lu] OK\n", n_periodic++);
             last_periodic = now_ms();
         }
     }
 }
 
-/* ---------- main ---------- */
-
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IOLBF, 0);
+    // Mostrar información de permisos
+    show_permission_info();
     if (argc < 3) {
         fprintf(stderr,
             "usage:\n"
