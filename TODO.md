@@ -2,6 +2,30 @@
 
 ## Portar a dispositivo fisico (cuando salgamos del emulador)
 
+### 0. Permisos para leer `/dev/input/event*` (bloqueante)
+
+En el emulador, el usuario `shell` puede leer los eventos del touchscreen porque
+SELinux es permisivo con builds de desarrollo. **En un movil real no-rooteado,
+`adb shell` NO tiene permiso** (SELinux en `user` builds bloquea la lectura de
+`/dev/input/event*`).
+
+Opciones cuando llegue el momento:
+
+- **Root** (o custom ROM con SELinux permisivo): trivial pero implica bootloader
+  unlock y, en el caso del OPPO objetivo, casi seguro perdida de garantia/banking
+  apps y puede no estar permitido por el fabricante.
+- **Firmar el binario como `system`** en una ROM personalizada: misma historia.
+- **Reescribir como app Android** con `AccessibilityService` (captura taps sin
+  root, pero requiere que el usuario active el servicio en Ajustes manualmente)
+  o un overlay con `TYPE_APPLICATION_OVERLAY`. Esto implicaria reintroducir una
+  app Java (similar a la que borramos), y `screencap` tambien hay que sustituirlo
+  por `MediaProjection` con consentimiento del usuario.
+- **Magisk/Shizuku** — Shizuku es interesante: da permisos elevados a apps sin
+  necesidad de root si el dispositivo tiene activado el modo desarrollador, pero
+  requiere que el usuario lo configure.
+
+Sin una de estas opciones, este flujo no portara a movil real.
+
 ### 1. Rango de coordenadas del touchscreen (`RAW_TOUCH_MAX`)
 
 En el emulador ranchu el touchscreen `virtio_input_multi_touch_*` reporta coords
