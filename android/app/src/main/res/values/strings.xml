@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lens</string>
+    <string name="title">Lens</string>
+    <string name="instructions">Cada cambio del campo de abajo se envia al backend con su timestamp. Las capturas de pantalla las hace el binario nativo en paralelo.</string>
+    <string name="input_hint">Escribe algo aqui</string>
+    <string name="status_idle">esperando primer cambio</string>
+</resources>

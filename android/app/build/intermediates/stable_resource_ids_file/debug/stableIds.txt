@@ -1,0 +1,9 @@
+com.example.lens:style/Theme.Lens = 0x7f040000
+com.example.lens:string/title = 0x7f030004
+com.example.lens:string/input_hint = 0x7f030001
+com.example.lens:string/status_idle = 0x7f030003
+com.example.lens:layout/activity_main = 0x7f020000
+com.example.lens:string/app_name = 0x7f030000
+com.example.lens:string/instructions = 0x7f030002
+com.example.lens:id/status = 0x7f010001
+com.example.lens:id/input = 0x7f010000

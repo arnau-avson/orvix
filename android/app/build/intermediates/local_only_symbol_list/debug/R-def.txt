@@ -1,0 +1,11 @@
+R_DEF: Internal format may change without notice
+local
+id input
+id status
+layout activity_main
+string app_name
+string input_hint
+string instructions
+string status_idle
+string title
+style Theme.Lens
