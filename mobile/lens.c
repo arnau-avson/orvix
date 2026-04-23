@@ -1,18 +1,21 @@
 /*
- * lens.c - native screenshot streamer
+ * lens.c - native screenshot streamer with tap-overlay support
  *
- * Wrapper minimo en C alrededor de /system/bin/screencap. Captura el frame
- * en PNG y lo envia via HTTP POST al backend de Lens. Pensado para correr
- * en el emulador via `adb shell` (uid shell), no como app instalada.
+ * Wrapper minimo en C alrededor de /system/bin/screencap. Modo `tap-stream`
+ * combina:
+ *   - capturas periodicas cada N ms (POST /upload)
+ *   - capturas inmediatas en cada tap (POST /upload?x=...&y=...)
+ *
+ * Las coords del tap salen de /system/bin/getevent -l, parseando los eventos
+ * EV_ABS ABS_MT_POSITION_X/Y y EV_KEY BTN_TOUCH del touchscreen.
  *
  * Build (NDK clang, x86_64 Android):
  *   x86_64-linux-android30-clang -O3 -o lens lens.c
  *
  * Use:
- *   lens shot   URL                     una sola captura
- *   lens stream URL [interval_ms]       bucle continuo (min 50 ms)
- *
- *   URL: http://host[:port][/path]      (sin HTTPS)
+ *   lens shot       URL                   una captura
+ *   lens stream     URL [interval_ms]     periodicas (sin taps)
+ *   lens tap-stream URL [interval_ms]     periodicas + por tap
  */
 
 #define _GNU_SOURCE
@@ -25,6 +28,7 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -36,6 +40,14 @@ typedef struct {
     int  port;
     char path[512];
 } url_t;
+
+typedef struct {
+    int x, y;
+    int has_x, has_y;
+    int touch_down;
+} tap_state_t;
+
+/* ---------- url + http helpers ---------- */
 
 static int parse_url(const char *s, url_t *u) {
     if (strncmp(s, "http://", 7) != 0) return -1;
@@ -92,7 +104,8 @@ static int send_all(int fd, const void *buf, size_t n) {
     return 0;
 }
 
-/* spawn /system/bin/screencap -p, slurp PNG bytes into a heap buffer */
+/* ---------- screencap ---------- */
+
 static char *capture_png(size_t *out_len) {
     int p[2];
     if (pipe(p) < 0) return NULL;
@@ -105,7 +118,6 @@ static char *capture_png(size_t *out_len) {
         if (dn >= 0) { dup2(dn, STDERR_FILENO); close(dn); }
         close(p[1]);
         execl("/system/bin/screencap", "screencap", "-p", (char *)NULL);
-        execlp("screencap", "screencap", "-p", (char *)NULL);
         _exit(127);
     }
     close(p[1]);
@@ -132,7 +144,7 @@ static char *capture_png(size_t *out_len) {
     return buf;
 }
 
-static int post_png(const url_t *u, const char *png, size_t len) {
+static int post_png(const url_t *u, const char *path, const char *png, size_t len) {
     int sock = tcp_connect(u->host, u->port);
     if (sock < 0) { perror("connect"); return -1; }
     char hdr[1024];
@@ -144,7 +156,7 @@ static int post_png(const url_t *u, const char *png, size_t len) {
         "Content-Length: %zu\r\n"
         "Connection: close\r\n"
         "\r\n",
-        u->path, u->host, u->port, len);
+        path, u->host, u->port, len);
     if (hl <= 0 || (size_t)hl >= sizeof hdr) { close(sock); return -1; }
     int rc = -1;
     if (send_all(sock, hdr, (size_t)hl) == 0 &&
@@ -163,23 +175,131 @@ static int post_png(const url_t *u, const char *png, size_t len) {
     return rc;
 }
 
-static int do_one(const url_t *u) {
+static int do_capture(const url_t *u, int tap_x, int tap_y) {
     size_t len = 0;
     char *png = capture_png(&len);
     if (!png) { fprintf(stderr, "screencap failed\n"); return -1; }
-    int rc = post_png(u, png, len);
+
+    char path[1024];
+    if (tap_x >= 0 && tap_y >= 0) {
+        char sep = strchr(u->path, '?') ? '&' : '?';
+        snprintf(path, sizeof path, "%s%cx=%d&y=%d", u->path, sep, tap_x, tap_y);
+    } else {
+        snprintf(path, sizeof path, "%s", u->path);
+    }
+
+    int rc = post_png(u, path, png, len);
     free(png);
     return rc;
 }
+
+/* ---------- tap reader (parses getevent -l output) ---------- */
+
+static long now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
+}
+
+static void process_event_line(const char *line, tap_state_t *st, const url_t *u) {
+    if (strstr(line, "ABS_MT_POSITION_X")) {
+        const char *v = strrchr(line, ' ');
+        if (v) { st->x = (int)strtol(v + 1, NULL, 16); st->has_x = 1; }
+    } else if (strstr(line, "ABS_MT_POSITION_Y")) {
+        const char *v = strrchr(line, ' ');
+        if (v) { st->y = (int)strtol(v + 1, NULL, 16); st->has_y = 1; }
+    } else if (strstr(line, "BTN_TOUCH")) {
+        if (strstr(line, "DOWN")) {
+            st->touch_down = 1;
+        } else if (strstr(line, "UP")) {
+            st->touch_down = 0;
+        }
+    } else if (strstr(line, "SYN_REPORT")) {
+        if (st->touch_down && st->has_x && st->has_y) {
+            printf("[tap] x=%d y=%d -> capture\n", st->x, st->y);
+            do_capture(u, st->x, st->y);
+            st->has_x = st->has_y = 0;
+        }
+    }
+}
+
+static int cmd_tap_stream(const url_t *u, int interval_ms) {
+    int p[2];
+    if (pipe(p) < 0) { perror("pipe"); return 1; }
+    pid_t pid = fork();
+    if (pid < 0) { perror("fork"); return 1; }
+    if (pid == 0) {
+        close(p[0]);
+        dup2(p[1], STDOUT_FILENO);
+        int dn = open("/dev/null", O_WRONLY | O_CLOEXEC);
+        if (dn >= 0) { dup2(dn, STDERR_FILENO); close(dn); }
+        close(p[1]);
+        execl("/system/bin/getevent", "getevent", "-l", (char *)NULL);
+        _exit(127);
+    }
+    close(p[1]);
+    int fd = p[0];
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+
+    printf("tap-stream: periodicas cada %d ms + por tap, -> http://%s:%d%s\n",
+           interval_ms, u->host, u->port, u->path);
+    printf("(getevent en pid=%d, lee /dev/input/event*)\n", pid);
+
+    char line_buf[1024];
+    size_t line_pos = 0;
+    tap_state_t st = {0};
+    long last_periodic = now_ms();
+    unsigned long n_periodic = 0;
+
+    for (;;) {
+        long elapsed = now_ms() - last_periodic;
+        long remain = interval_ms - elapsed;
+        if (remain < 0) remain = 0;
+
+        struct timeval tv = { remain / 1000, (remain % 1000) * 1000 };
+        fd_set rfds;
+        FD_ZERO(&rfds);
+        FD_SET(fd, &rfds);
+        int rv = select(fd + 1, &rfds, NULL, NULL, &tv);
+
+        if (rv > 0 && FD_ISSET(fd, &rfds)) {
+            char buf[4096];
+            ssize_t n = read(fd, buf, sizeof buf);
+            if (n > 0) {
+                for (ssize_t i = 0; i < n; i++) {
+                    char c = buf[i];
+                    if (c == '\n' || line_pos == sizeof line_buf - 1) {
+                        line_buf[line_pos] = 0;
+                        process_event_line(line_buf, &st, u);
+                        line_pos = 0;
+                    } else {
+                        line_buf[line_pos++] = c;
+                    }
+                }
+            }
+        }
+
+        if (now_ms() - last_periodic >= interval_ms) {
+            if (do_capture(u, -1, -1) == 0) {
+                printf("[periodic %lu] OK\n", n_periodic++);
+            }
+            last_periodic = now_ms();
+        }
+    }
+}
+
+/* ---------- main ---------- */
 
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IOLBF, 0);
     if (argc < 3) {
         fprintf(stderr,
             "usage:\n"
-            "  %s shot   URL                una sola captura\n"
-            "  %s stream URL [interval_ms]  bucle continuo (min 50 ms)\n"
-            "URL: http://host[:port][/path]\n", argv[0], argv[0]);
+            "  %s shot       URL                 una captura\n"
+            "  %s stream     URL [interval_ms]   periodicas\n"
+            "  %s tap-stream URL [interval_ms]   periodicas + por tap (red dot)\n"
+            "URL: http://host[:port][/path]\n",
+            argv[0], argv[0], argv[0]);
         return 1;
     }
     url_t u;
@@ -188,21 +308,23 @@ int main(int argc, char **argv) {
         return 1;
     }
     if (strcmp(argv[1], "shot") == 0) {
-        int rc = do_one(&u);
-        if (rc == 0) printf("OK -> http://%s:%d%s\n", u.host, u.port, u.path);
-        return rc == 0 ? 0 : 1;
+        return do_capture(&u, -1, -1) == 0 ? 0 : 1;
     }
     if (strcmp(argv[1], "stream") == 0) {
         int ms = (argc >= 4) ? atoi(argv[3]) : 1000;
         if (ms < 50) ms = 50;
-        printf("streaming a http://%s:%d%s cada %d ms (Ctrl-C para parar)\n",
-               u.host, u.port, u.path, ms);
+        printf("streaming a http://%s:%d%s cada %d ms\n", u.host, u.port, u.path, ms);
         unsigned long n = 0;
         for (;;) {
-            if (do_one(&u) == 0) printf("[%lu] OK\n", n++);
+            if (do_capture(&u, -1, -1) == 0) printf("[%lu] OK\n", n++);
             struct timespec ts = { ms / 1000, (long)(ms % 1000) * 1000000L };
             nanosleep(&ts, NULL);
         }
+    }
+    if (strcmp(argv[1], "tap-stream") == 0) {
+        int ms = (argc >= 4) ? atoi(argv[3]) : 1000;
+        if (ms < 50) ms = 50;
+        return cmd_tap_stream(&u, ms);
     }
     fprintf(stderr, "comando desconocido: %s\n", argv[1]);
     return 1;

@@ -160,12 +160,12 @@ Ok "app Lens lanzada."
 
 # ---- 10) lanzar streaming de screenshots desde el binario nativo -------------
 $EndpointUrl = "http://127.0.0.1:$ReceiverPort/upload"
-Step "abriendo ventana del streaming de screenshots ($IntervalMs ms)..."
+Step "abriendo ventana del streaming de screenshots + taps ($IntervalMs ms)..."
 Start-Process powershell -ArgumentList @(
     "-NoExit", "-Command",
     "cd '$ProjectDir'; " +
     "`$env:Path = '$env:Path'; " +
-    "adb shell /data/local/tmp/lens stream $EndpointUrl $IntervalMs"
+    "adb shell /data/local/tmp/lens tap-stream $EndpointUrl $IntervalMs"
 ) | Out-Null
 
 Write-Host ""

