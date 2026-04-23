@@ -175,17 +175,70 @@ static int post_png(const url_t *u, const char *path, const char *png, size_t le
     return rc;
 }
 
+/* Extrae el package de la app en foreground parseando `dumpsys window`.
+ * Formato buscado: "mCurrentFocus=Window{xxx u0 com.pkg/com.pkg.Activity}".
+ * Deja out="" si no se pudo determinar. */
+static void get_current_app(char *out, size_t outlen) {
+    out[0] = '\0';
+    int p[2];
+    if (pipe(p) < 0) return;
+    pid_t pid = fork();
+    if (pid < 0) { close(p[0]); close(p[1]); return; }
+    if (pid == 0) {
+        close(p[0]);
+        dup2(p[1], STDOUT_FILENO);
+        int dn = open("/dev/null", O_WRONLY | O_CLOEXEC);
+        if (dn >= 0) { dup2(dn, STDERR_FILENO); close(dn); }
+        close(p[1]);
+        execl("/system/bin/sh", "sh", "-c",
+              "dumpsys window | grep -m1 mCurrentFocus", (char *)NULL);
+        _exit(127);
+    }
+    close(p[1]);
+    char buf[512];
+    size_t total = 0;
+    for (;;) {
+        ssize_t r = read(p[0], buf + total, sizeof buf - 1 - total);
+        if (r < 0) { if (errno == EINTR) continue; break; }
+        if (r == 0) break;
+        total += (size_t)r;
+        if (total >= sizeof buf - 1) break;
+    }
+    close(p[0]);
+    waitpid(pid, NULL, 0);
+    if (total == 0) return;
+    buf[total] = '\0';
+    const char *u0 = strstr(buf, " u0 ");
+    if (!u0) return;
+    const char *pkg = u0 + 4;
+    const char *end = pkg;
+    while (*end && *end != '/' && *end != '}' && *end != ' ' &&
+           *end != '\r' && *end != '\n') end++;
+    size_t len = (size_t)(end - pkg);
+    if (len == 0 || len >= outlen) return;
+    memcpy(out, pkg, len);
+    out[len] = '\0';
+}
+
 static int do_capture(const url_t *u, int tap_x, int tap_y) {
     size_t len = 0;
     char *png = capture_png(&len);
     if (!png) { fprintf(stderr, "screencap failed\n"); return -1; }
 
+    char app[128];
+    get_current_app(app, sizeof app);
+
     char path[1024];
+    int pos = snprintf(path, sizeof path, "%s", u->path);
+    if (pos < 0 || pos >= (int)sizeof path) { free(png); return -1; }
+    char sep = strchr(u->path, '?') ? '&' : '?';
     if (tap_x >= 0 && tap_y >= 0) {
-        char sep = strchr(u->path, '?') ? '&' : '?';
-        snprintf(path, sizeof path, "%s%cx=%d&y=%d", u->path, sep, tap_x, tap_y);
-    } else {
-        snprintf(path, sizeof path, "%s", u->path);
+        int w = snprintf(path + pos, sizeof path - pos,
+                         "%cx=%d&y=%d", sep, tap_x, tap_y);
+        if (w > 0 && pos + w < (int)sizeof path) { pos += w; sep = '&'; }
+    }
+    if (app[0] && pos < (int)sizeof path - 1) {
+        snprintf(path + pos, sizeof path - pos, "%capp=%s", sep, app);
     }
 
     int rc = post_png(u, path, png, len);

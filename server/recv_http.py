@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 import sys
 import threading
 from datetime import datetime, timezone
@@ -82,8 +83,13 @@ def draw_tap_overlay(png_blob: bytes, raw_x: int, raw_y: int) -> tuple[bytes, in
         return png_blob, -1, -1
 
 
-def save_screenshot(blob: bytes, tap_x: int = -1, tap_y: int = -1) -> Path:
-    """Guarda PNG en screenshot/. Si llega tap (raw), dibuja circulo rojo."""
+_SAFE_APP_RE = re.compile(r"[^a-zA-Z0-9._-]+")
+
+
+def save_screenshot(blob: bytes, tap_x: int = -1, tap_y: int = -1,
+                    app: str = "") -> Path:
+    """Guarda PNG en screenshot/. Si llega tap (raw), dibuja circulo rojo.
+    Si llega app (package), lo anade al nombre del fichero."""
     global SHOT_COUNT
     import time as _t
     is_tap = tap_x >= 0 and tap_y >= 0
@@ -94,8 +100,12 @@ def save_screenshot(blob: bytes, tap_x: int = -1, tap_y: int = -1) -> Path:
         n = SHOT_COUNT
         SHOT_COUNT += 1
     ext = ".png" if blob.startswith(b"\x89PNG") else ".bin"
-    suffix = f"_tap_{px_x}_{px_y}" if is_tap and px_x >= 0 else ""
-    fname = shots_dir() / f"shot_{int(_t.time())}_{n:05d}{suffix}{ext}"
+    parts = [f"shot_{int(_t.time())}_{n:05d}"]
+    if app:
+        parts.append(_SAFE_APP_RE.sub("_", app))
+    if is_tap and px_x >= 0:
+        parts.append(f"tap_{px_x}_{px_y}")
+    fname = shots_dir() / ("_".join(parts) + ext)
     fname.write_bytes(blob)
     return fname
 
@@ -166,9 +176,11 @@ class Handler(BaseHTTPRequestHandler):
             qs = parse_qs(parsed.query)
             tap_x = int(qs["x"][0]) if "x" in qs else -1
             tap_y = int(qs["y"][0]) if "y" in qs else -1
-            fname = save_screenshot(raw, tap_x, tap_y)
+            app = qs.get("app", [""])[0]
+            fname = save_screenshot(raw, tap_x, tap_y, app)
             tag = f" TAP({tap_x},{tap_y})" if tap_x >= 0 else ""
-            print(f"[recv] {self.client_address[0]} POST /upload{tag} "
+            app_tag = f" [{app}]" if app else ""
+            print(f"[recv] {self.client_address[0]} POST /upload{tag}{app_tag} "
                   f"({len(raw)//1024} KiB) -> {fname.name}  total={SHOT_COUNT}")
             self._send(204)
             return
