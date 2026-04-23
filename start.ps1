@@ -30,6 +30,10 @@ $IntervalMs   = 1000
 $AppPackage   = "com.example.lens"
 $AppActivity  = "$AppPackage/.MainActivity"
 
+# $true  -> compila, instala y lanza la app Lens (captura teclas del EditText).
+# $false -> solo taps+screenshots globales, sin tocar la app Java.
+$StartLensApp = $false
+
 # ---- preparacion de PATH (sesion actual) -------------------------------------
 $env:ANDROID_HOME      = $Sdk
 $env:ANDROID_SDK_ROOT  = $Sdk
@@ -124,39 +128,42 @@ Step "subiendo binario nativo a /data/local/tmp/lens..."
 & adb shell chmod 755 /data/local/tmp/lens
 Ok "binario nativo en el dispositivo."
 
-# ---- 8) compilar e instalar APK ----------------------------------------------
-$gradlew = "$AndroidDir\gradlew.bat"
-if (-not (Test-Path $gradlew)) {
-    Write-Host ""
-    Write-Host "[!] FALTA EL GRADLE WRAPPER" -ForegroundColor Yellow
-    Write-Host "    Abre Android Studio y selecciona 'File -> Open' apuntando a:"
-    Write-Host "      $AndroidDir"
-    Write-Host "    Deja que sincronice. Despues vuelve a ejecutar .\start.ps1"
-    Write-Host ""
-    throw "falta gradlew.bat"
+# ---- 8 + 9) compilar, instalar y lanzar APK Lens (opcional) ------------------
+if ($StartLensApp) {
+    $gradlew = "$AndroidDir\gradlew.bat"
+    if (-not (Test-Path $gradlew)) {
+        Write-Host ""
+        Write-Host "[!] FALTA EL GRADLE WRAPPER" -ForegroundColor Yellow
+        Write-Host "    Abre Android Studio y selecciona 'File -> Open' apuntando a:"
+        Write-Host "      $AndroidDir"
+        Write-Host "    Deja que sincronice. Despues vuelve a ejecutar .\start.ps1"
+        Write-Host ""
+        throw "falta gradlew.bat"
+    }
+
+    Step "compilando APK (gradlew assembleDebug)..."
+    Push-Location $AndroidDir
+    try {
+        & $gradlew assembleDebug
+        if ($LASTEXITCODE -ne 0) { throw "gradle assembleDebug fallo (codigo $LASTEXITCODE)" }
+    } finally {
+        Pop-Location
+    }
+
+    $apk = "$AndroidDir\app\build\outputs\apk\debug\app-debug.apk"
+    if (-not (Test-Path $apk)) { throw "APK no encontrado en $apk" }
+    Ok "APK construido."
+
+    Step "instalando APK en el emulador..."
+    & adb install -r $apk | Out-Null
+    Ok "APK instalado."
+
+    Step "lanzando MainActivity..."
+    & adb shell am start -n $AppActivity | Out-Null
+    Ok "app Lens lanzada."
+} else {
+    Ok "saltando build+install+launch de la app Lens (StartLensApp=`$false)."
 }
-
-Step "compilando APK (gradlew assembleDebug)..."
-Push-Location $AndroidDir
-try {
-    & $gradlew assembleDebug
-    if ($LASTEXITCODE -ne 0) { throw "gradle assembleDebug fallo (codigo $LASTEXITCODE)" }
-} finally {
-    Pop-Location
-}
-
-$apk = "$AndroidDir\app\build\outputs\apk\debug\app-debug.apk"
-if (-not (Test-Path $apk)) { throw "APK no encontrado en $apk" }
-Ok "APK construido."
-
-Step "instalando APK en el emulador..."
-& adb install -r $apk | Out-Null
-Ok "APK instalado."
-
-# ---- 9) lanzar la app Java ---------------------------------------------------
-Step "lanzando MainActivity..."
-& adb shell am start -n $AppActivity | Out-Null
-Ok "app Lens lanzada."
 
 # ---- 10) lanzar streaming de screenshots desde el binario nativo -------------
 $EndpointUrl = "http://127.0.0.1:$ReceiverPort/upload"
