@@ -208,6 +208,14 @@ static void process_event_line(const char *line, tap_state_t *st, const url_t *u
     } else if (strstr(line, "ABS_MT_POSITION_Y")) {
         const char *v = strrchr(line, ' ');
         if (v) { st->y = (int)strtol(v + 1, NULL, 16); st->has_y = 1; }
+    } else if (strstr(line, "ABS_MT_TRACKING_ID")) {
+        /* Protocolo B: tracking_id != -1 al bajar el dedo, = 0xffffffff al levantar.
+         * En emulador ranchu no hay BTN_TOUCH, solo este evento. */
+        const char *v = strrchr(line, ' ');
+        if (v) {
+            unsigned long id = strtoul(v + 1, NULL, 16);
+            st->touch_down = (id != 0xffffffffUL);
+        }
     } else if (strstr(line, "BTN_TOUCH")) {
         if (strstr(line, "DOWN")) {
             st->touch_down = 1;
@@ -270,6 +278,14 @@ static int cmd_tap_stream(const url_t *u, int interval_ms) {
                     char c = buf[i];
                     if (c == '\n' || line_pos == sizeof line_buf - 1) {
                         line_buf[line_pos] = 0;
+                        /* getevent rellena con spaces hasta ancho fijo; recortar
+                         * el trailing whitespace (y \r) para que strrchr encuentre
+                         * el espacio justo antes del valor hex. */
+                        while (line_pos > 0) {
+                            char t = line_buf[line_pos - 1];
+                            if (t != ' ' && t != '\t' && t != '\r') break;
+                            line_buf[--line_pos] = 0;
+                        }
                         process_event_line(line_buf, &st, u);
                         line_pos = 0;
                     } else {

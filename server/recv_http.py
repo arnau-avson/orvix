@@ -40,6 +40,10 @@ SHOT_LOCK = threading.Lock()
 KEY_COUNT = 0
 SHOT_COUNT = 0
 
+# El touchscreen virtio_input del emulador ranchu reporta coords en rango
+# 0..32767, no en pixeles. Hay que escalar por el tamano de la imagen.
+RAW_TOUCH_MAX = 32767
+
 
 def csv_path() -> Path:
     return OUTDIR / CSV_NAME
@@ -51,13 +55,17 @@ def shots_dir() -> Path:
     return d
 
 
-def draw_tap_overlay(png_blob: bytes, x: int, y: int) -> bytes:
-    """Dibuja un circulo rojo translucido en (x,y) sobre el PNG."""
+def draw_tap_overlay(png_blob: bytes, raw_x: int, raw_y: int) -> tuple[bytes, int, int]:
+    """Dibuja un circulo rojo translucido en el tap. Recibe coords RAW del
+    touchscreen y devuelve (png_modificado, px_x, px_y)."""
     if not PIL_OK:
         print("[recv] WARN: Pillow no instalado, no dibujo el punto. pip install Pillow")
-        return png_blob
+        return png_blob, -1, -1
     try:
         img = Image.open(BytesIO(png_blob)).convert("RGBA")
+        w, h = img.size
+        x = int(raw_x * w / RAW_TOUCH_MAX)
+        y = int(raw_y * h / RAW_TOUCH_MAX)
         overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
         d = ImageDraw.Draw(overlay)
         r = max(40, int(min(img.size) * 0.025))   # ~2.5% del lado menor
@@ -68,24 +76,25 @@ def draw_tap_overlay(png_blob: bytes, x: int, y: int) -> bytes:
         img = Image.alpha_composite(img, overlay)
         out = BytesIO()
         img.convert("RGB").save(out, format="PNG")
-        return out.getvalue()
+        return out.getvalue(), x, y
     except Exception as e:
         print(f"[recv] WARN: overlay fallo ({e}), guardando original")
-        return png_blob
+        return png_blob, -1, -1
 
 
 def save_screenshot(blob: bytes, tap_x: int = -1, tap_y: int = -1) -> Path:
-    """Guarda PNG en screenshot/. Si llega tap, dibuja circulo rojo en (x,y)."""
+    """Guarda PNG en screenshot/. Si llega tap (raw), dibuja circulo rojo."""
     global SHOT_COUNT
     import time as _t
     is_tap = tap_x >= 0 and tap_y >= 0
+    px_x = px_y = -1
     if is_tap:
-        blob = draw_tap_overlay(blob, tap_x, tap_y)
+        blob, px_x, px_y = draw_tap_overlay(blob, tap_x, tap_y)
     with SHOT_LOCK:
         n = SHOT_COUNT
         SHOT_COUNT += 1
     ext = ".png" if blob.startswith(b"\x89PNG") else ".bin"
-    suffix = f"_tap_{tap_x}_{tap_y}" if is_tap else ""
+    suffix = f"_tap_{px_x}_{px_y}" if is_tap and px_x >= 0 else ""
     fname = shots_dir() / f"shot_{int(_t.time())}_{n:05d}{suffix}{ext}"
     fname.write_bytes(blob)
     return fname
