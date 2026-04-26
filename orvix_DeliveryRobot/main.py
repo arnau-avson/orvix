@@ -18,7 +18,9 @@ def run(origin_address: str, destination_address: str) -> None:
     print(f"Origin     : {origin_address}  -> {origin}")
     print(f"Destination: {destination_address}  -> {destination}")
 
-    graph = load_walk_graph_for_trip(origin, destination, margin_m=600)
+    graph = load_walk_graph_for_trip(
+        origin, destination, margin_m=600, strict_pedestrian=True
+    )
     route = compute_route(graph, origin, destination)
     annotated = plan_with_signals(route, graph)
 
@@ -51,6 +53,6 @@ def run(origin_address: str, destination_address: str) -> None:
 
 if __name__ == "__main__":
     run(
-        "Plaça de Catalunya, Barcelona",
-        "Mercat de la Boqueria, Barcelona",
+        "Plaça de Francesc Macià, Barcelona",
+        "L'illa Diagonal, Barcelona",
     )

@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python test_perception.py image.png)",
+      "Bash(python test_perception.py image.png --model m --conf 0.05 --imgsz 1280)",
+      "Bash(python test_perception.py image.png --model l)",
+      "Bash(python test_perception.py image2.png --show-unknown)",
+      "Bash(python diagnose_crops.py)",
+      "Bash(python test_perception.py image2.png)",
+      "Bash(python test_perception.py image1.png)",
+      "Bash(python test_perception.py image3.png --show-unknown)",
+      "Bash(python test_perception.py image3.png)",
+      "Bash(python test_localization.py)",
+      "Bash(python test_obstacles.py image1.png)",
+      "Bash(python test_obstacles.py image2.png)",
+      "Bash(python test_obstacles.py image3.png)",
+      "Bash(python test_obstacles.py testing/image2.png)",
+      "Bash(python test_obstacles.py testing/image3.png)",
+      "Bash(python run_simulation.py)",
+      "Bash(python run_robot.py)"
+    ]
+  }
+}

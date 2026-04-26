@@ -1,3 +1,8 @@
 osmnx>=2.0.0
 networkx>=3.2
 geopy>=2.4
+ultralytics>=8.3.0
+opencv-python>=4.10
+# Optional — only needed if you use the serial hardware adapters
+# (NMEASerialGPS, SerialIMU, SerialMotorController). Mocks don't need it.
+pyserial>=3.5

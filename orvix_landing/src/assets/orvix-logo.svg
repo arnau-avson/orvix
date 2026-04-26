@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 156 40" fill="none" role="img" aria-label="Orvix">
+  <title>Orvix</title>
+  <!-- Mark: orbital trajectory around a core -->
+  <g transform="translate(4 4)">
+    <ellipse cx="16" cy="16" rx="14.5" ry="5.5"
+             stroke="currentColor" stroke-width="2"
+             transform="rotate(-28 16 16)"/>
+    <circle cx="16" cy="16" r="5.25" fill="currentColor"/>
+  </g>
+  <!-- Wordmark -->
+  <text x="44" y="27.5"
+        font-family="'Inter','SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif"
+        font-size="22" font-weight="700" letter-spacing="-0.6"
+        fill="currentColor">orvix</text>
+</svg>

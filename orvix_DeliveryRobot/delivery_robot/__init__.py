@@ -16,6 +16,10 @@ from .traffic_lights import (
     should_proceed,
 )
 from .export import route_to_geojson, save_geojson, route_to_csv
+from .geometry import bearing_deg, haversine_m, project_onto_segment
+
+# Sub-packages — keep heavy deps (torch) lazy by NOT re-exporting perception
+# at the top level. Use `from delivery_robot.perception import ...` directly.
 
 __all__ = [
     "Point",
@@ -39,4 +43,7 @@ __all__ = [
     "route_to_geojson",
     "save_geojson",
     "route_to_csv",
+    "bearing_deg",
+    "haversine_m",
+    "project_onto_segment",
 ]
