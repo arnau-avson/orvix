@@ -40,11 +40,14 @@ def run(origin_address: str, destination_address: str) -> None:
     print(f"Road crossings : {len(crossings)}")
 
     if crossings:
-        print("\n--- Crossings (lat, lon, road_type, signaled) ---")
+        print("\n--- Crossings (entry -> exit, road type, length, signaled) ---")
         for i, c in enumerate(crossings, 1):
             sig = "SIGNALED" if c.is_signaled else "unsignaled"
-            print(f"  [{i}] ({c.point.lat:.6f}, {c.point.lon:.6f})  "
-                  f"{c.road_type:14}  bearing={c.crossing_bearing:5.1f}°  {sig}")
+            print(f"  [{i}] {c.road_type:14}  width={c.road_width_m:5.1f}m  "
+                  f"length={c.crossing_length_m:5.1f}m  {sig}")
+            print(f"        entry  ({c.entry_point.lat:.6f}, {c.entry_point.lon:.6f})")
+            print(f"        midpt  ({c.point.lat:.6f}, {c.point.lon:.6f})")
+            print(f"        exit   ({c.exit_point.lat:.6f}, {c.exit_point.lon:.6f})")
 
     sensor = AlwaysGoSensor()
     if annotated.lights:

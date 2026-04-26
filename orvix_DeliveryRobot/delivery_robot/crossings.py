@@ -1,22 +1,24 @@
-"""Detect where the pedestrian route crosses vehicle roads.
+"""Detect where the pedestrian route crosses vehicle roads — and how wide
+each crossing is.
 
-Geometric approach: intersect the route polyline with the vehicle road
-network. Independent of OSM `highway=crossing` tagging (which is wildly
-inconsistent in coverage), so we don't miss crossings just because a
-mapper forgot to add the tag.
+Geometric approach:
+1. Intersect the route polyline with the vehicle road network. Each
+   intersection is a single midpoint of a crossing.
+2. For each midpoint, look up the road's local bearing (from its OSM
+   geometry) and width (from its `width`/`lanes` tag, with sensible
+   per-highway-type defaults if missing).
+3. Compute the crossing length along the route as
+       crossing_length = road_width / sin(angle_between_route_and_road)
+   so an oblique crossing is correctly longer than a perpendicular one.
+4. Offset along the route bearing by ±crossing_length/2 to get
+   `entry_point` (curb the robot leaves) and `exit_point` (curb it
+   arrives at).
+5. Optionally enrich each crossing with the nearest OSM signal node.
 
-Each detected `Crossing` carries:
-- `point` — lat/lon of the intersection.
-- `road_type` — OSM highway tag of the road being crossed
-  (residential, secondary, primary, ...).
-- `crossing_bearing` — direction of travel at the crossing point
-  (perpendicular to the road by definition of a crossing).
-- `step_index` — index of the route step containing this crossing.
-- `signal` — nearest `TrafficLight` from OSM (None if unsignaled).
-
-Combined with the visual semáforo detector, this gives a complete picture:
-geometry says where the cruce is, vision says go/wait.
+Independent of OSM `highway=crossing` tagging (which is wildly inconsistent),
+so we don't miss crossings just because mappers forgot to tag them.
 """
+import re
 from dataclasses import dataclass
 from typing import List, Optional, Set, Tuple
 
@@ -27,7 +29,7 @@ try:
 except ImportError as e:  # pragma: no cover
     raise ImportError("shapely is required (installed as an osmnx dependency)") from e
 
-from .geometry import bearing_deg, haversine_m
+from .geometry import bearing_deg, destination_point, haversine_m
 from .models import Point, Route
 from .traffic_lights import TrafficLight
 
@@ -45,19 +47,42 @@ _ROAD_TAGS = {
     "service",
 }
 
+# Default road widths in meters, by OSM `highway` tag. Used when the edge
+# has no explicit `width` or `lanes` tag. Conservative real-world averages
+# for Spanish urban streets.
+_DEFAULT_WIDTH_M = {
+    "motorway": 22.0,
+    "motorway_link": 8.0,
+    "trunk": 16.0,
+    "trunk_link": 7.0,
+    "primary": 14.0,
+    "primary_link": 7.0,
+    "secondary": 11.0,
+    "secondary_link": 6.0,
+    "tertiary": 9.0,
+    "tertiary_link": 5.0,
+    "unclassified": 7.0,
+    "residential": 6.0,
+    "service": 4.0,
+}
+_LANE_WIDTH_M = 3.25  # Standard urban lane width.
+
 # Maximum distance (meters) between a crossing and an OSM signal node for the
 # signal to be considered governing this crossing.
 _SIGNAL_NEAREST_M = 25.0
 
-# Rounding precision for deduplicating intersection points (≈11 cm at the equator).
 _DEDUPE_DECIMALS = 6
 
 
 @dataclass
 class Crossing:
-    point: Point
+    point: Point                  # Midpoint of the crossing.
+    entry_point: Point            # Where the robot LEAVES its current curb.
+    exit_point: Point             # Where the robot ARRIVES at the far curb.
     road_type: str
-    crossing_bearing: float
+    road_width_m: float
+    crossing_bearing: float       # Direction along the route at the crossing.
+    crossing_length_m: float      # Distance from entry to exit (along route).
     step_index: int
     signal: Optional[TrafficLight] = None
 
@@ -73,6 +98,33 @@ def _highway_tag(data: dict) -> Optional[str]:
     return h
 
 
+def _parse_first_number(value) -> Optional[float]:
+    """Parse '5', '5 m', '5.5', '5;6', '5-6' → first numeric value, or None."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, list):
+        for v in value:
+            n = _parse_first_number(v)
+            if n is not None:
+                return n
+        return None
+    m = re.search(r"\d+(?:\.\d+)?", str(value))
+    return float(m.group()) if m else None
+
+
+def _road_width_m(data: dict, highway: str) -> float:
+    """Best-effort road width from OSM tags, falling back to type defaults."""
+    explicit = _parse_first_number(data.get("width"))
+    if explicit is not None and explicit > 0:
+        return explicit
+    lanes = _parse_first_number(data.get("lanes"))
+    if lanes is not None and lanes > 0:
+        return lanes * _LANE_WIDTH_M
+    return _DEFAULT_WIDTH_M.get(highway, 7.0)
+
+
 def _edge_geometry_coords(graph: nx.MultiDiGraph, u: int, v: int, data: dict):
     geom = data.get("geometry")
     if geom is not None:
@@ -83,8 +135,30 @@ def _edge_geometry_coords(graph: nx.MultiDiGraph, u: int, v: int, data: dict):
     ]
 
 
+def _bearing_of_segment_nearest(road_line: sg.LineString, p: sg.Point) -> float:
+    """Local compass bearing of the road LineString at the segment closest to p."""
+    coords = list(road_line.coords)
+    if len(coords) < 2:
+        return 0.0
+    best_i, best_d = 0, float("inf")
+    for i in range(len(coords) - 1):
+        seg = sg.LineString([coords[i], coords[i + 1]])
+        d = seg.distance(p)
+        if d < best_d:
+            best_d = d
+            best_i = i
+    a = coords[best_i]
+    b = coords[best_i + 1]
+    return bearing_deg(a[1], a[0], b[1], b[0])
+
+
+def _angle_between_bearings_deg(a: float, b: float) -> float:
+    """Smallest angle between two compass bearings, in degrees [0, 90]."""
+    diff = abs(a - b) % 180.0
+    return min(diff, 180.0 - diff)
+
+
 def _extract_points(geom) -> List:
-    """Pull `shapely.Point` objects out of any intersection result type."""
     if geom.is_empty:
         return []
     gt = geom.geom_type
@@ -92,8 +166,6 @@ def _extract_points(geom) -> List:
         return [geom]
     if gt == "MultiPoint":
         return list(geom.geoms)
-    # When route segment overlaps the road exactly (very rare), take the
-    # endpoints of the overlap as the crossing locations.
     from shapely.geometry import Point as SPoint
     if gt == "LineString":
         coords = list(geom.coords)
@@ -113,21 +185,10 @@ def find_road_crossings(
     road_graph: nx.MultiDiGraph,
     signal_nodes: Optional[List[TrafficLight]] = None,
 ) -> List[Crossing]:
-    """Return the list of points where the route polyline crosses a road.
-
-    Parameters
-    ----------
-    route : Route
-        The pedestrian route to analyze.
-    road_graph : nx.MultiDiGraph
-        Graph containing the vehicle road geometry. Best results when this is
-        a `network_type='drive'` graph (only roads, no footways), so the
-        route's pedestrian segments only intersect roads at actual crossings.
-    signal_nodes : list of TrafficLight, optional
-        OSM signal nodes (from `find_traffic_lights`). Each crossing gets the
-        nearest signal within 25 m attached, if any.
+    """Return the list of road crossings the route traverses, with entry,
+    midpoint, and exit coordinates computed.
     """
-    road_lines: List[Tuple[sg.LineString, str]] = []
+    road_lines: List[Tuple[sg.LineString, str, float]] = []
     for u, v, data in road_graph.edges(data=True):
         ht = _highway_tag(data)
         if ht not in _ROAD_TAGS:
@@ -135,7 +196,7 @@ def find_road_crossings(
         coords = _edge_geometry_coords(road_graph, u, v, data)
         if len(coords) < 2:
             continue
-        road_lines.append((sg.LineString(coords), ht))
+        road_lines.append((sg.LineString(coords), ht, _road_width_m(data, ht)))
 
     crossings: List[Crossing] = []
     seen: Set[Tuple[float, float]] = set()
@@ -145,9 +206,9 @@ def find_road_crossings(
         a = polyline[i]
         b = polyline[i + 1]
         seg = sg.LineString([(a.lon, a.lat), (b.lon, b.lat)])
-        seg_bearing = bearing_deg(a.lat, a.lon, b.lat, b.lon)
+        route_bearing = bearing_deg(a.lat, a.lon, b.lat, b.lon)
 
-        for road_line, road_type in road_lines:
+        for road_line, road_type, road_width in road_lines:
             if not seg.intersects(road_line):
                 continue
             for p in _extract_points(seg.intersection(road_line)):
@@ -155,10 +216,32 @@ def find_road_crossings(
                 if key in seen:
                     continue
                 seen.add(key)
+
+                road_bearing = _bearing_of_segment_nearest(road_line, p)
+                angle = _angle_between_bearings_deg(route_bearing, road_bearing)
+                # Avoid div-by-zero when the route runs parallel to the road
+                # (shouldn't happen in pedestrian-strict mode, but guard anyway).
+                import math
+                sin_angle = math.sin(math.radians(max(angle, 5.0)))
+                crossing_length = road_width / sin_angle
+                half = crossing_length / 2.0
+
+                mid = Point(lat=p.y, lon=p.x)
+                entry_lat, entry_lon = destination_point(
+                    mid.lat, mid.lon, (route_bearing + 180) % 360, half
+                )
+                exit_lat, exit_lon = destination_point(
+                    mid.lat, mid.lon, route_bearing, half
+                )
+
                 crossings.append(Crossing(
-                    point=Point(lat=p.y, lon=p.x),
+                    point=mid,
+                    entry_point=Point(lat=entry_lat, lon=entry_lon),
+                    exit_point=Point(lat=exit_lat, lon=exit_lon),
                     road_type=road_type,
-                    crossing_bearing=seg_bearing,
+                    road_width_m=road_width,
+                    crossing_bearing=route_bearing,
+                    crossing_length_m=crossing_length,
                     step_index=i,
                 ))
 

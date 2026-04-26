@@ -21,7 +21,8 @@
       "Bash(python run_robot.py)",
       "Bash(python -m pytest tests/ -x --tb=short)",
       "Bash(python -m pytest tests/ --tb=short)",
-      "Bash(python main.py)"
+      "Bash(python main.py)",
+      "Bash(python -m pytest tests/test_crossings.py tests/test_geometry.py -v --tb=short)"
     ]
   }
 }

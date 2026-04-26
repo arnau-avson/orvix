@@ -24,6 +24,34 @@ def haversine_m(a_lat: float, a_lon: float, b_lat: float, b_lon: float) -> float
     return 2 * R_EARTH_M * math.asin(math.sqrt(h))
 
 
+def destination_point(
+    lat: float, lon: float, bearing_deg_value: float, distance_m: float,
+) -> tuple[float, float]:
+    """Compute the destination (lat, lon) reached from (lat, lon) by moving
+    `distance_m` meters along compass bearing `bearing_deg_value` (0=N, 90=E).
+
+    Standard great-circle formula (Vincenty's direct, spherical Earth). Valid
+    over distances up to a few hundred km; for sub-km use it's effectively
+    exact at sidewalk-robot scale.
+    """
+    lat1 = math.radians(lat)
+    lon1 = math.radians(lon)
+    brng = math.radians(bearing_deg_value)
+    d_R = distance_m / R_EARTH_M
+
+    sin_lat1 = math.sin(lat1)
+    cos_lat1 = math.cos(lat1)
+    sin_d = math.sin(d_R)
+    cos_d = math.cos(d_R)
+
+    lat2 = math.asin(sin_lat1 * cos_d + cos_lat1 * sin_d * math.cos(brng))
+    lon2 = lon1 + math.atan2(
+        math.sin(brng) * sin_d * cos_lat1,
+        cos_d - sin_lat1 * math.sin(lat2),
+    )
+    return math.degrees(lat2), math.degrees(lon2)
+
+
 def project_onto_segment(
     p_lat: float, p_lon: float,
     a_lat: float, a_lon: float,

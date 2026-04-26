@@ -32,10 +32,49 @@ class TestFindRoadCrossings:
         graph = _road_graph_with_north_south_road(at_lon=0.0005)
         out = find_road_crossings(route, graph)
         assert len(out) == 1
-        assert out[0].point.lon == pytest.approx(0.0005, abs=1e-6)
-        assert out[0].road_type == "secondary"
-        assert out[0].crossing_bearing == pytest.approx(90.0, abs=1.0)
-        assert out[0].step_index == 0
+        c = out[0]
+        assert c.point.lon == pytest.approx(0.0005, abs=1e-6)
+        assert c.road_type == "secondary"
+        assert c.crossing_bearing == pytest.approx(90.0, abs=1.0)
+        assert c.step_index == 0
+        # Default secondary width = 11 m. Perpendicular crossing → length = width.
+        assert c.road_width_m == pytest.approx(11.0, abs=0.1)
+        assert c.crossing_length_m == pytest.approx(11.0, abs=0.5)
+        # Entry should be ~5.5m west of midpoint, exit ~5.5m east.
+        assert c.entry_point.lon < c.point.lon
+        assert c.exit_point.lon > c.point.lon
+
+    def test_entry_and_exit_are_symmetric_around_midpoint(self):
+        route = _route_east()
+        graph = _road_graph_with_north_south_road(at_lon=0.0005, highway="primary")
+        c = find_road_crossings(route, graph)[0]
+        # Distances from midpoint to entry vs exit should be equal.
+        from delivery_robot.geometry import haversine_m
+        d_entry = haversine_m(c.point.lat, c.point.lon,
+                              c.entry_point.lat, c.entry_point.lon)
+        d_exit = haversine_m(c.point.lat, c.point.lon,
+                             c.exit_point.lat, c.exit_point.lon)
+        assert d_entry == pytest.approx(d_exit, abs=0.1)
+        assert d_entry == pytest.approx(c.crossing_length_m / 2, abs=0.5)
+
+    def test_road_width_from_lanes_tag(self):
+        route = _route_east()
+        graph = nx.MultiDiGraph()
+        graph.add_node(1, x=0.0005, y=-0.001)
+        graph.add_node(2, x=0.0005, y=0.001)
+        # Explicit lanes=4 → 4 * 3.25 = 13m, overriding the residential default of 6m.
+        graph.add_edge(1, 2, highway="residential", lanes="4")
+        c = find_road_crossings(route, graph)[0]
+        assert c.road_width_m == pytest.approx(13.0, abs=0.1)
+
+    def test_road_width_from_explicit_width_tag(self):
+        route = _route_east()
+        graph = nx.MultiDiGraph()
+        graph.add_node(1, x=0.0005, y=-0.001)
+        graph.add_node(2, x=0.0005, y=0.001)
+        graph.add_edge(1, 2, highway="residential", width="8.5 m")
+        c = find_road_crossings(route, graph)[0]
+        assert c.road_width_m == pytest.approx(8.5, abs=0.1)
 
     def test_no_crossing_when_road_outside_route(self):
         route = _route_east()

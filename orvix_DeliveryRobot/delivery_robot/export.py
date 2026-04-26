@@ -58,19 +58,45 @@ def route_to_geojson(
         })
 
     for crossing in crossings or ():
+        color = "#22BB22" if crossing.is_signaled else "#CC0000"
+        common_props = {
+            "kind": "crossing",
+            "road_type": crossing.road_type,
+            "is_signaled": crossing.is_signaled,
+            "road_width_m": round(crossing.road_width_m, 1),
+            "crossing_length_m": round(crossing.crossing_length_m, 1),
+            "crossing_bearing": round(crossing.crossing_bearing, 1),
+            "step_index": crossing.step_index,
+        }
+        # The crossing as a LineString: entry curb -> exit curb. Stroke
+        # color matches signal status. This is the bit the robot "drives
+        # across".
         features.append({
             "type": "Feature",
-            "properties": {
-                "kind": "crossing",
-                "road_type": crossing.road_type,
-                "is_signaled": crossing.is_signaled,
-                "crossing_bearing": round(crossing.crossing_bearing, 1),
-                "step_index": crossing.step_index,
-                "marker-color": "#22BB22" if crossing.is_signaled else "#CC0000",
-                "marker-symbol": "cross",
+            "properties": {**common_props, "stroke": color, "stroke-width": 4},
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [crossing.entry_point.lon, crossing.entry_point.lat],
+                    [crossing.exit_point.lon, crossing.exit_point.lat],
+                ],
             },
-            "geometry": {"type": "Point", "coordinates": [crossing.point.lon, crossing.point.lat]},
         })
+        # Endpoints as separate points so they're individually clickable.
+        for label, pt in (("entry", crossing.entry_point),
+                         ("exit", crossing.exit_point)):
+            features.append({
+                "type": "Feature",
+                "properties": {
+                    **common_props,
+                    "endpoint": label,
+                    "marker-color": color,
+                    "marker-symbol": "square" if label == "entry" else "triangle",
+                    "marker-size": "small",
+                },
+                "geometry": {"type": "Point",
+                             "coordinates": [pt.lon, pt.lat]},
+            })
 
     return {"type": "FeatureCollection", "features": features}
 
