@@ -11,6 +11,7 @@ Priority order (top wins):
 This ordering encodes the safety/operational hierarchy: don't overshoot the
 goal, don't proceed when lost, don't move when something blocks the path.
 """
+import logging
 from typing import Optional
 
 import numpy as np
@@ -21,7 +22,10 @@ from ..localization.models import Pose
 from ..localization.tracker import RouteTracker
 from ..models import Route
 from .decision import NavigationDecision
+from .recovery import RecoveryMonitor
 from .states import NavigationAction, NavigationState
+
+_log = logging.getLogger(__name__)
 
 
 class NavigationOrchestrator:
@@ -32,12 +36,14 @@ class NavigationOrchestrator:
         light_sensor: FusedTrafficLightSensor,
         obstacle_gate: FusedObstacleGate,
         arrived_radius_m: float = 5.0,
+        recovery: Optional[RecoveryMonitor] = None,
     ):
         self.route = route
         self.tracker = tracker
         self.light_sensor = light_sensor
         self.obstacle_gate = obstacle_gate
         self.arrived_radius_m = arrived_radius_m
+        self.recovery = recovery
         self.last_decision: Optional[NavigationDecision] = None
         # Set of (lat, lon) keys for lights we have already cleared, so we
         # don't re-trigger APPROACHING for the same light after we cross.
@@ -141,6 +147,32 @@ class NavigationOrchestrator:
         ))
 
     def _record(self, decision: NavigationDecision) -> NavigationDecision:
+        if self.recovery is not None:
+            decision = self.recovery.review(decision, decision.tracker.pose.timestamp_s)
+
+        prev_state = self.last_decision.state if self.last_decision else None
+        if decision.state != prev_state:
+            _log.info(
+                "state transition",
+                extra={"event": {
+                    "state": decision.state.value,
+                    "action": decision.action.value,
+                    "reason": decision.reason,
+                    "progress_m": round(decision.tracker.progress_m, 1),
+                    "remaining_m": round(decision.tracker.remaining_m, 1),
+                    "light_state": decision.light_state,
+                    "blocker": decision.blocker.class_name if decision.blocker else None,
+                }},
+            )
+        if decision.recovery_warning:
+            _log.warning(
+                "recovery",
+                extra={"event": {
+                    "warning": decision.recovery_warning,
+                    "state": decision.state.value,
+                }},
+            )
+
         self.last_decision = decision
         return decision
 

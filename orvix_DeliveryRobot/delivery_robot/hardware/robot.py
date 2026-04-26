@@ -16,6 +16,7 @@ Safety: any exception inside the loop triggers `motors.emergency_stop()`
 before re-raising, so a Python crash leaves the robot stationary rather
 than runaway.
 """
+import logging
 import time
 from typing import Callable, Optional
 
@@ -29,6 +30,8 @@ from ..navigation import NavigationAction, NavigationDecision
 from ..perception import ObstacleDetector, YOLOTrafficLightDetector
 from .camera import CameraSource
 from .motors import MotorController
+
+_log = logging.getLogger(__name__)
 
 
 GraphLoader = Callable[[Point, Point], nx.MultiDiGraph]
@@ -50,12 +53,14 @@ class Robot:
         light_model_size: str = "m",
         obstacle_model_size: str = "m",
         no_pose_wait_s: float = 0.1,
+        gps_dropout_estop_s: float = 30.0,
     ):
         self.camera = camera
         self.localization = localization
         self.motors = motors
         self.graph_loader = graph_loader
         self.no_pose_wait_s = no_pose_wait_s
+        self.gps_dropout_estop_s = gps_dropout_estop_s
 
         if light_sensor is None:
             light_detector = YOLOTrafficLightDetector(model_size=light_model_size)
@@ -106,19 +111,40 @@ class Robot:
         self,
         on_decision: Optional[Callable[[NavigationDecision], None]],
     ) -> None:
+        no_pose_since: Optional[float] = None
         while self.manager and self.manager.is_active:
             frame = self.camera.read()
             if frame is None:
-                # Camera dropout — stop and bail. The supervisor must reset us.
                 self.motors.emergency_stop()
+                _log.error("camera dropout — emergency stop")
                 raise RuntimeError("Camera failed to deliver a frame")
 
             pose = self.localization.get_pose()
             if pose is None:
-                # No GPS fix yet (cold start). Hold and try again.
+                now = time.monotonic()
+                if no_pose_since is None:
+                    no_pose_since = now
+                    _log.warning("gps dropout started")
+                elapsed = now - no_pose_since
+                if elapsed >= self.gps_dropout_estop_s:
+                    self.motors.emergency_stop()
+                    _log.error(
+                        "gps dropout escalation",
+                        extra={"event": {"elapsed_s": round(elapsed, 1)}},
+                    )
+                    raise RuntimeError(
+                        f"No GPS fix for {elapsed:.0f}s — emergency stop"
+                    )
                 self.motors.execute(NavigationAction.WAIT)
                 time.sleep(self.no_pose_wait_s)
                 continue
+
+            if no_pose_since is not None:
+                _log.info(
+                    "gps recovered",
+                    extra={"event": {"dropout_s": round(time.monotonic() - no_pose_since, 1)}},
+                )
+                no_pose_since = None
 
             decision = self.manager.tick(pose, frame)
             if decision is None:

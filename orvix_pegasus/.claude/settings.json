@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Read(//c/Program Files/Android/Android Studio/jbr/bin/**)",
-      "Read(//c/Program Files/Android/**)"
-    ]
-  }
-}

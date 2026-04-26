@@ -411,6 +411,196 @@
           41.3895165
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "crossing_bearing": 259.3,
+        "step_index": 15,
+        "marker-color": "#CC0000",
+        "marker-symbol": "cross"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1444485,
+          41.3921814
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "crossing_bearing": 259.2,
+        "step_index": 21,
+        "marker-color": "#CC0000",
+        "marker-symbol": "cross"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1440556,
+          41.3921592
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "crossing_bearing": 253.4,
+        "step_index": 28,
+        "marker-color": "#CC0000",
+        "marker-symbol": "cross"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1427458,
+          41.3919203
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "crossing_bearing": 253.7,
+        "step_index": 36,
+        "marker-color": "#CC0000",
+        "marker-symbol": "cross"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.141199,
+          41.3915293
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "primary",
+        "is_signaled": false,
+        "crossing_bearing": 251.5,
+        "step_index": 42,
+        "marker-color": "#CC0000",
+        "marker-symbol": "cross"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1396184,
+          41.3911214
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "crossing_bearing": 234.5,
+        "step_index": 64,
+        "marker-color": "#CC0000",
+        "marker-symbol": "cross"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1382123,
+          41.3897568
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "crossing_bearing": 232.9,
+        "step_index": 74,
+        "marker-color": "#CC0000",
+        "marker-symbol": "cross"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.13695,
+          41.3890512
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "crossing_bearing": 326.7,
+        "step_index": 78,
+        "marker-color": "#CC0000",
+        "marker-symbol": "cross"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.136377,
+          41.3888021
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "crossing_bearing": 234.4,
+        "step_index": 82,
+        "marker-color": "#CC0000",
+        "marker-symbol": "cross"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1355247,
+          41.3884714
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "crossing_bearing": 71.2,
+        "step_index": 89,
+        "marker-color": "#CC0000",
+        "marker-symbol": "cross"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1347296,
+          41.3893319
+        ]
+      }
     }
   ]
 }

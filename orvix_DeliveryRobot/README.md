@@ -39,14 +39,14 @@ Robot tipo Starship/Serve: recorre aceras de un punto A a un punto B a velocidad
 | `hardware/imu` | `SerialIMU` (protocolo ASCII `$IMU,...`) + `MockIMU` |
 | `hardware/fusion` | `GPSIMULocalizer` con filtro complementario en heading (GPS≥1m/s confía GPS, parado confía IMU) |
 | `hardware/motors` | `SerialMotorController` (protocolo `go/wait/stop/estop/turn`) + `MockMotorController` |
-| `hardware/robot` | `Robot.run_mission()` — bucle integrado con safety estop ante cualquier excepción |
+| `hardware/robot` | `Robot.run_mission()` — bucle integrado con safety estop ante cualquier excepción + escalación por GPS dropout (>30s) |
+| `observability` | Logging JSONL + console + replay (`replay_jsonl()`) para análisis offline de incidentes |
+| `navigation/recovery` | `RecoveryMonitor` — escala a ERROR si STOPPED_FOR_OBSTACLE >5min, WAITING_AT_CROSSING >4min, APPROACHING_CROSSING unknown >45s |
+| `tests/` | 72 tests pytest cubriendo geometría, NMEA, clasificador, fusión, localización, navegación, recovery, motores, observabilidad |
 
 ### Lo que falta
 
 - **Firmware Arduino/ESP32** que implemente los protocolos serie definidos por los adapters (`$IMU,...` para IMU, `go/wait/stop/estop` para motores). El contrato Python ↔ MCU está fijado; falta el lado MCU.
-- **Logging estructurado** (Python `logging` + JSON) y soporte de replay desde logs para depurar incidentes.
-- **Tests automáticos** (pytest) sobre orquestador, fusión, geometría, parser NMEA. Ahora todo se valida con scripts manuales.
-- **Comportamientos de recuperación**: pérdida de GPS prolongada (>30s), semáforo `unknown` perpetuo, obstáculo bloqueando >5 min (¿avisar a operador remoto?).
 - **Comunicación con backend**: recepción de misiones desde fleet management (REST/MQTT), telemetría en vivo, ETA, alertas.
 - **Detección de pasos de cebra y bordillos**: ahora el robot sabe que hay un semáforo cerca, pero no exactamente dónde está la línea de stop. Necesitaría modelo entrenado en zebra crossings + sensor de profundidad para curbs.
 
@@ -63,6 +63,7 @@ delivery_robot/
 ├── traffic_lights.py      Semáforos sobre la ruta + sensor ABC
 ├── geometry.py            Bearing, distancia, proyección
 ├── export.py              GeoJSON
+├── observability.py       Logger JSONL + console + replay
 ├── localization/
 │   ├── models.py          Pose
 │   ├── provider.py        LocalizationProvider, RouteSimulator
@@ -80,6 +81,7 @@ delivery_robot/
 ├── navigation/
 │   ├── states.py          NavigationState, NavigationAction
 │   ├── decision.py        NavigationDecision
+│   ├── recovery.py        RecoveryMonitor + RecoveryPolicy
 │   └── orchestrator.py    NavigationOrchestrator
 ├── mission/
 │   ├── models.py          Mission, MissionStatus
@@ -91,6 +93,41 @@ delivery_robot/
     ├── fusion.py          GPSIMULocalizer
     ├── motors.py          SerialMotorController, MockMotorController
     └── robot.py           Robot
+
+tests/                     Suite pytest (72 tests, ~2.4s)
+├── test_geometry.py
+├── test_nmea.py
+├── test_classifier.py
+├── test_fusion.py
+├── test_localization.py
+├── test_navigation.py
+├── test_recovery.py
+├── test_motors.py
+└── test_observability.py
+```
+
+## Logging y replay
+
+```bash
+python run_simulation.py
+# logs/run_simulation.jsonl contiene una línea JSON por evento
+```
+
+Cada evento incluye `ts`, `level`, `logger`, `msg` y opcionalmente un `event` con campos estructurados (state transition, mission lifecycle, recovery warning, GPS dropout, etc.). Para análisis offline:
+
+```python
+from delivery_robot.observability import replay_jsonl
+for record in replay_jsonl("logs/run_simulation.jsonl"):
+    if record.get("event", {}).get("state") == "error":
+        print(record)
+```
+
+## Tests
+
+```bash
+pip install pytest
+pytest tests/
+# 72 passed in 2.4s
 ```
 
 ---

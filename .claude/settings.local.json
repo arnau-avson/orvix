@@ -18,7 +18,10 @@
       "Bash(python test_obstacles.py testing/image2.png)",
       "Bash(python test_obstacles.py testing/image3.png)",
       "Bash(python run_simulation.py)",
-      "Bash(python run_robot.py)"
+      "Bash(python run_robot.py)",
+      "Bash(python -m pytest tests/ -x --tb=short)",
+      "Bash(python -m pytest tests/ --tb=short)",
+      "Bash(python main.py)"
     ]
   }
 }

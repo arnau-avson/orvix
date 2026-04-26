@@ -55,6 +55,7 @@ from delivery_robot.navigation import (
     NavigationDecision,
     NavigationState,
 )
+from delivery_robot.observability import setup_logging
 from delivery_robot.perception.obstacles import Obstacle
 
 
@@ -321,4 +322,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     img_dir = Path(args.images) if args.images else None
+    setup_logging(
+        json_path="logs/run_robot.jsonl",
+        console_level="WARNING",
+    )
     sys.exit(main(img_dir))

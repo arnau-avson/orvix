@@ -3,7 +3,10 @@ from .map_loader import (
     load_walk_graph,
     load_walk_graph_from_place,
     load_walk_graph_for_trip,
+    load_road_graph,
+    load_road_graph_for_trip,
 )
+from .crossings import Crossing, find_road_crossings
 from .geocoder import geocode, reverse_geocode, GeocodingError
 from .router import compute_route, RoutingError
 from .traffic_lights import (
@@ -28,6 +31,10 @@ __all__ = [
     "load_walk_graph",
     "load_walk_graph_from_place",
     "load_walk_graph_for_trip",
+    "load_road_graph",
+    "load_road_graph_for_trip",
+    "Crossing",
+    "find_road_crossings",
     "geocode",
     "reverse_geocode",
     "GeocodingError",

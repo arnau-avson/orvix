@@ -42,6 +42,7 @@ from delivery_robot import (
 from delivery_robot.localization import RouteSimulator
 from delivery_robot.mission import Mission, MissionManager, MissionStatus
 from delivery_robot.navigation import NavigationAction, NavigationDecision, NavigationState
+from delivery_robot.observability import setup_logging
 from delivery_robot.perception.obstacles import Obstacle
 
 
@@ -344,6 +345,10 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    setup_logging(
+        json_path="logs/run_simulation.jsonl",
+        console_level="WARNING",   # human-readable progress already prints inline
+    )
     if args.real:
         sys.exit(run_real(Path(args.images)))
     sys.exit(run_mocked())
