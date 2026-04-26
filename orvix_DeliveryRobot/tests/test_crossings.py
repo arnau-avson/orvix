@@ -76,6 +76,37 @@ class TestFindRoadCrossings:
         c = find_road_crossings(route, graph)[0]
         assert c.road_width_m == pytest.approx(8.5, abs=0.1)
 
+    def test_crossing_length_uses_real_meters_not_degrees(self):
+        # At lat=41° (Barcelona), 1° longitude is ~84 km, not 111 km.
+        # A perpendicular crossing of a 10m-wide road at lat=41 should give
+        # crossing_length=10m, not 10/cos(41) = ~13m.
+        a = Point(lat=41.0, lon=0.0)
+        b = Point(lat=41.0, lon=0.001)
+        route = Route(origin=a, destination=b, steps=[
+            Step(start=a, end=b, length_m=84.0, geometry=[a, b]),
+        ])
+        graph = nx.MultiDiGraph()
+        graph.add_node(1, x=0.0005, y=40.999)
+        graph.add_node(2, x=0.0005, y=41.001)
+        graph.add_edge(1, 2, highway="residential", width="10")
+        c = find_road_crossings(route, graph)[0]
+        assert c.crossing_length_m == pytest.approx(10.0, abs=0.5)
+
+    def test_oblique_crossing_length_correct(self):
+        # Route running NE (45°) crossing a north-south road of width 10m.
+        # Crossing length along route = 10 / sin(45°) ≈ 14.14 m
+        a = Point(lat=0.0, lon=0.0)
+        b = Point(lat=0.001, lon=0.001)  # ~111m NE-ish
+        route = Route(origin=a, destination=b, steps=[
+            Step(start=a, end=b, length_m=156.0, geometry=[a, b]),
+        ])
+        graph = nx.MultiDiGraph()
+        graph.add_node(1, x=0.0005, y=-0.001)
+        graph.add_node(2, x=0.0005, y=0.001)
+        graph.add_edge(1, 2, highway="residential", width="10")
+        c = find_road_crossings(route, graph)[0]
+        assert c.crossing_length_m == pytest.approx(14.14, abs=0.5)
+
     def test_no_crossing_when_road_outside_route(self):
         route = _route_east()
         # Road at lon=0.005 but route only goes to lon=0.001

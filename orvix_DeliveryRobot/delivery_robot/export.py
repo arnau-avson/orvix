@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from typing import Iterable, Optional, Union
 
+from .buildings import BuildingIntersection
 from .crossings import Crossing
 from .models import Route
 from .traffic_lights import TrafficLight
@@ -12,6 +13,7 @@ def route_to_geojson(
     route: Route,
     lights: Optional[Iterable[TrafficLight]] = None,
     crossings: Optional[Iterable[Crossing]] = None,
+    building_issues: Optional[Iterable[BuildingIntersection]] = None,
 ) -> dict:
     """Build a GeoJSON FeatureCollection: route LineString + Point features
     for traffic lights and road crossings. Drop the result on
@@ -98,6 +100,26 @@ def route_to_geojson(
                              "coordinates": [pt.lon, pt.lat]},
             })
 
+    for issue in building_issues or ():
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "kind": "building_intersection",
+                "segment_index": issue.segment_index,
+                "overlap_length_m": round(issue.overlap_length_m, 2),
+                "stroke": "#FF00FF",       # magenta — impossible to miss
+                "stroke-width": 6,
+                "stroke-opacity": 1.0,
+            },
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [issue.entry_point.lon, issue.entry_point.lat],
+                    [issue.exit_point.lon, issue.exit_point.lat],
+                ],
+            },
+        })
+
     return {"type": "FeatureCollection", "features": features}
 
 
@@ -106,9 +128,13 @@ def save_geojson(
     route: Route,
     lights: Optional[Iterable[TrafficLight]] = None,
     crossings: Optional[Iterable[Crossing]] = None,
+    building_issues: Optional[Iterable[BuildingIntersection]] = None,
 ) -> Path:
     out = Path(path)
-    out.write_text(json.dumps(route_to_geojson(route, lights, crossings), indent=2))
+    out.write_text(json.dumps(
+        route_to_geojson(route, lights, crossings, building_issues),
+        indent=2,
+    ))
     return out
 
 

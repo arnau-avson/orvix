@@ -7,6 +7,12 @@ from .map_loader import (
     load_road_graph_for_trip,
 )
 from .crossings import Crossing, find_road_crossings
+from .buildings import (
+    BuildingIntersection,
+    find_route_inside_buildings,
+    load_buildings,
+    snap_outside_buildings,
+)
 from .geocoder import geocode, reverse_geocode, GeocodingError
 from .router import compute_route, RoutingError
 from .traffic_lights import (
@@ -35,6 +41,10 @@ __all__ = [
     "load_road_graph_for_trip",
     "Crossing",
     "find_road_crossings",
+    "BuildingIntersection",
+    "find_route_inside_buildings",
+    "load_buildings",
+    "snap_outside_buildings",
     "geocode",
     "reverse_geocode",
     "GeocodingError",

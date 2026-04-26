@@ -5,127 +5,175 @@
       "type": "Feature",
       "properties": {
         "kind": "route",
-        "distance_m": 1214.7,
-        "estimated_time_s": 867.7
+        "distance_m": 1022.3,
+        "estimated_time_s": 730.2
       },
       "geometry": {
         "type": "LineString",
         "coordinates": [
           [
-            2.1440869,
-            41.3931532
+            2.1451955,
+            41.3927169
           ],
           [
-            2.1440726,
-            41.3931449
+            2.1451905,
+            41.392701
           ],
           [
-            2.144048,
-            41.3931307
+            2.1451703,
+            41.3926267
           ],
           [
-            2.1440232,
-            41.3931184
+            2.1451515,
+            41.3925754
           ],
           [
-            2.1439867,
-            41.3930951
+            2.1451235,
+            41.3925226
+          ],
+          [
+            2.1450685,
+            41.3924642
+          ],
+          [
+            2.145098,
+            41.3924371
+          ],
+          [
+            2.1451056,
+            41.3924313
+          ],
+          [
+            2.14509,
+            41.392421
+          ],
+          [
+            2.1450743,
+            41.3924107
+          ],
+          [
+            2.1449923,
+            41.3923571
+          ],
+          [
+            2.1449267,
+            41.3923141
+          ],
+          [
+            2.1448955,
+            41.3923064
+          ],
+          [
+            2.1447131,
+            41.3922512
+          ],
+          [
+            2.1445888,
+            41.392225
+          ],
+          [
+            2.1445493,
+            41.3921957
+          ],
+          [
+            2.1444485,
+            41.3921814
+          ],
+          [
+            2.1444001,
+            41.3921727
+          ],
+          [
+            2.144386,
+            41.3921725
+          ],
+          [
+            2.1442632,
+            41.3921712
+          ],
+          [
+            2.1441322,
+            41.3921698
+          ],
+          [
+            2.1441087,
+            41.3921668
+          ],
+          [
+            2.1440556,
+            41.3921592
           ],
           [
             2.1439784,
-            41.3930902
+            41.3921529
           ],
           [
-            2.1438491,
-            41.393031
+            2.1439146,
+            41.3921852
           ],
           [
-            2.1438054,
-            41.3930235
+            2.143861,
+            41.3922221
           ],
           [
-            2.1437571,
-            41.393009
+            2.1431327,
+            41.3920444
           ],
           [
-            2.1437347,
-            41.3929941
+            2.1428948,
+            41.3919831
           ],
           [
-            2.1437075,
-            41.3929759
+            2.1428176,
+            41.3919364
           ],
           [
-            2.1436951,
-            41.3929676
+            2.1427458,
+            41.3919203
           ],
           [
-            2.1436632,
-            41.3929417
+            2.1426212,
+            41.3918902
           ],
           [
-            2.1435589,
-            41.3928744
+            2.1425811,
+            41.3918965
           ],
           [
-            2.1435844,
-            41.3928204
+            2.1425072,
+            41.3918809
           ],
           [
-            2.1435951,
-            41.3927976
+            2.1416423,
+            41.391658
           ],
           [
-            2.143639,
-            41.3926878
+            2.1415219,
+            41.3916264
           ],
           [
-            2.1436517,
-            41.392639
+            2.1412555,
+            41.3915429
           ],
           [
-            2.1436581,
-            41.3925655
+            2.1412213,
+            41.3915342
           ],
           [
-            2.1418646,
-            41.392109
+            2.141199,
+            41.3915293
           ],
           [
-            2.1402844,
-            41.3917142
+            2.1411316,
+            41.3915128
           ],
           [
-            2.139687,
-            41.3915622
+            2.140099,
+            41.391268
           ],
           [
-            2.1397244,
-            41.391473
-          ],
-          [
-            2.1397609,
-            41.3913958
-          ],
-          [
-            2.1397805,
-            41.3913566
-          ],
-          [
-            2.139795,
-            41.3913284
-          ],
-          [
-            2.1398099,
-            41.3912988
-          ],
-          [
-            2.1398311,
-            41.3912539
-          ],
-          [
-            2.1398453,
-            41.3912216
+            2.1399783,
+            41.3912351
           ],
           [
             2.1398599,
@@ -144,196 +192,76 @@
             41.3910538
           ],
           [
-            2.1394169,
-            41.3910456
+            2.1384837,
+            41.3908341
           ],
           [
-            2.1394443,
-            41.3910414
+            2.1382318,
+            41.3907687
           ],
           [
-            2.1394948,
-            41.3909142
+            2.1375706,
+            41.3905982
           ],
           [
-            2.1395237,
-            41.3907979
+            2.1375215,
+            41.3905821
           ],
           [
-            2.1395674,
-            41.3908059
+            2.137379,
+            41.3905444
           ],
           [
-            2.1395805,
-            41.3908038
+            2.1372597,
+            41.3905119
           ],
           [
-            2.1395889,
-            41.3907905
+            2.1372141,
+            41.3905035
           ],
           [
-            2.1395599,
-            41.390734
+            2.1369751,
+            41.3904354
           ],
           [
-            2.1395843,
-            41.3907255
+            2.136893,
+            41.3903772
           ],
           [
-            2.1396565,
-            41.3907473
+            2.1368314,
+            41.3903548
           ],
           [
-            2.1396761,
-            41.3907314
+            2.1367832,
+            41.3903432
           ],
           [
-            2.1395149,
-            41.3906375
+            2.1367294,
+            41.3903336
           ],
           [
-            2.139278,
-            41.3904994
+            2.1361881,
+            41.3901955
           ],
           [
-            2.1391478,
-            41.3904235
+            2.1359939,
+            41.3901429
           ],
           [
-            2.1390776,
-            41.3903837
+            2.1355527,
+            41.3900364
           ],
           [
-            2.1386934,
-            41.3901658
+            2.1351622,
+            41.3899348
           ],
           [
-            2.1382267,
-            41.3899078
+            2.1340886,
+            41.389661
           ],
           [
-            2.1382493,
-            41.3898852
-          ],
-          [
-            2.1382698,
-            41.3898648
-          ],
-          [
-            2.1383204,
-            41.3898146
-          ],
-          [
-            2.1382123,
-            41.3897568
-          ],
-          [
-            2.1381095,
-            41.3897024
-          ],
-          [
-            2.1380854,
-            41.3896937
-          ],
-          [
-            2.1380376,
-            41.3896667
-          ],
-          [
-            2.137761,
-            41.3895148
-          ],
-          [
-            2.1374728,
-            41.3893592
-          ],
-          [
-            2.137342,
-            41.3892809
-          ],
-          [
-            2.1371996,
-            41.3892025
-          ],
-          [
-            2.1369878,
-            41.3890811
-          ],
-          [
-            2.136977,
-            41.3890665
-          ],
-          [
-            2.13695,
-            41.3890512
-          ],
-          [
-            2.1369237,
-            41.3890318
-          ],
-          [
-            2.1368358,
-            41.3889937
-          ],
-          [
-            2.136411,
-            41.3887633
-          ],
-          [
-            2.136377,
-            41.3888021
-          ],
-          [
-            2.1363292,
-            41.388849
-          ],
-          [
-            2.1356718,
-            41.3884997
-          ],
-          [
-            2.1356126,
-            41.3885187
-          ],
-          [
-            2.1355247,
-            41.3884714
-          ],
-          [
-            2.1354239,
-            41.3884119
-          ],
-          [
-            2.1353468,
-            41.388477
-          ],
-          [
-            2.1349162,
-            41.3889348
-          ],
-          [
-            2.1347202,
-            41.3891543
-          ],
-          [
-            2.1346297,
-            41.3892569
-          ],
-          [
-            2.1345924,
-            41.3892968
-          ],
-          [
-            2.1347296,
-            41.3893319
-          ],
-          [
-            2.1347743,
-            41.3893431
-          ],
-          [
-            2.1346214,
-            41.3895079
+            2.1341151,
+            41.389607
           ]
         ]
       }
@@ -346,8 +274,8 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.1444103,
-          41.393092
+          2.1449657,
+          41.3928429
         ]
       }
     },
@@ -359,227 +287,8 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.134703,
-          41.3895165
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.5,
-        "crossing_length_m": 7.0,
-        "crossing_bearing": 232.3,
-        "step_index": 0,
-        "stroke": "#CC0000",
-        "stroke-width": 4
-      },
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            2.1441055960153306,
-            41.393164051520976
-          ],
-          [
-            2.1440396040041114,
-            41.3931257484696
-          ]
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.5,
-        "crossing_length_m": 7.0,
-        "crossing_bearing": 232.3,
-        "step_index": 0,
-        "endpoint": "entry",
-        "marker-color": "#CC0000",
-        "marker-symbol": "square",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.1441055960153306,
-          41.393164051520976
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.5,
-        "crossing_length_m": 7.0,
-        "crossing_bearing": 232.3,
-        "step_index": 0,
-        "endpoint": "exit",
-        "marker-color": "#CC0000",
-        "marker-symbol": "triangle",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.1440396040041114,
-          41.3931257484696
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.5,
-        "crossing_length_m": 6.6,
-        "crossing_bearing": 228.3,
-        "step_index": 9,
-        "stroke": "#CC0000",
-        "stroke-width": 4
-      },
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            2.143737156621698,
-            41.392995743755584
-          ],
-          [
-            2.1436778433964077,
-            41.39295605623681
-          ]
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.5,
-        "crossing_length_m": 6.6,
-        "crossing_bearing": 228.3,
-        "step_index": 9,
-        "endpoint": "entry",
-        "marker-color": "#CC0000",
-        "marker-symbol": "square",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.143737156621698,
-          41.392995743755584
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.5,
-        "crossing_length_m": 6.6,
-        "crossing_bearing": 228.3,
-        "step_index": 9,
-        "endpoint": "exit",
-        "marker-color": "#CC0000",
-        "marker-symbol": "triangle",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.1436778433964077,
-          41.39295605623681
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "secondary_link",
-        "is_signaled": false,
-        "road_width_m": 6.5,
-        "crossing_length_m": 6.5,
-        "crossing_bearing": 160.5,
-        "step_index": 13,
-        "stroke": "#CC0000",
-        "stroke-width": 4
-      },
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            2.1435713886928327,
-            41.3928479533425
-          ],
-          [
-            2.1435974112961373,
-            41.39279284665603
-          ]
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "secondary_link",
-        "is_signaled": false,
-        "road_width_m": 6.5,
-        "crossing_length_m": 6.5,
-        "crossing_bearing": 160.5,
-        "step_index": 13,
-        "endpoint": "entry",
-        "marker-color": "#CC0000",
-        "marker-symbol": "square",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.1435713886928327,
-          41.3928479533425
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "secondary_link",
-        "is_signaled": false,
-        "road_width_m": 6.5,
-        "crossing_length_m": 6.5,
-        "crossing_bearing": 160.5,
-        "step_index": 13,
-        "endpoint": "exit",
-        "marker-color": "#CC0000",
-        "marker-symbol": "triangle",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.1435974112961373,
-          41.39279284665603
+          2.134638908085956,
+          41.38976822303293
         ]
       }
     },
@@ -589,10 +298,10 @@
         "kind": "crossing",
         "road_type": "secondary",
         "is_signaled": false,
-        "road_width_m": 17.0,
-        "crossing_length_m": 17.0,
-        "crossing_bearing": 162.5,
-        "step_index": 21,
+        "road_width_m": 9.0,
+        "crossing_length_m": 5.2,
+        "crossing_bearing": 259.3,
+        "step_index": 15,
         "stroke": "#CC0000",
         "stroke-width": 4
       },
@@ -600,12 +309,12 @@
         "type": "LineString",
         "coordinates": [
           [
-            2.139693818723319,
-            41.39154593707173
+            2.144510010289,
+            41.392190126162035
           ],
           [
-            2.139754981208059,
-            41.39140006292016
+            2.1444485,
+            41.3921814
           ]
         ]
       }
@@ -616,10 +325,10 @@
         "kind": "crossing",
         "road_type": "secondary",
         "is_signaled": false,
-        "road_width_m": 17.0,
-        "crossing_length_m": 17.0,
-        "crossing_bearing": 162.5,
-        "step_index": 21,
+        "road_width_m": 9.0,
+        "crossing_length_m": 5.2,
+        "crossing_bearing": 259.3,
+        "step_index": 15,
         "endpoint": "entry",
         "marker-color": "#CC0000",
         "marker-symbol": "square",
@@ -628,8 +337,8 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.139693818723319,
-          41.39154593707173
+          2.144510010289,
+          41.392190126162035
         ]
       }
     },
@@ -639,9 +348,155 @@
         "kind": "crossing",
         "road_type": "secondary",
         "is_signaled": false,
-        "road_width_m": 17.0,
-        "crossing_length_m": 17.0,
-        "crossing_bearing": 162.5,
+        "road_width_m": 9.0,
+        "crossing_length_m": 5.2,
+        "crossing_bearing": 259.3,
+        "step_index": 15,
+        "endpoint": "exit",
+        "marker-color": "#CC0000",
+        "marker-symbol": "triangle",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1444485,
+          41.3921814
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "road_width_m": 9.0,
+        "crossing_length_m": 4.1,
+        "crossing_bearing": 256.5,
+        "step_index": 16,
+        "stroke": "#CC0000",
+        "stroke-width": 4
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            2.1444485,
+            41.3921814
+          ],
+          [
+            2.1444001,
+            41.3921727
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "road_width_m": 9.0,
+        "crossing_length_m": 4.1,
+        "crossing_bearing": 256.5,
+        "step_index": 16,
+        "endpoint": "entry",
+        "marker-color": "#CC0000",
+        "marker-symbol": "square",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1444485,
+          41.3921814
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "road_width_m": 9.0,
+        "crossing_length_m": 4.1,
+        "crossing_bearing": 256.5,
+        "step_index": 16,
+        "endpoint": "exit",
+        "marker-color": "#CC0000",
+        "marker-symbol": "triangle",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1444001,
+          41.3921727
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "road_width_m": 9.8,
+        "crossing_length_m": 4.5,
+        "crossing_bearing": 259.2,
+        "step_index": 21,
+        "stroke": "#CC0000",
+        "stroke-width": 4
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            2.1441087,
+            41.3921668
+          ],
+          [
+            2.1440556,
+            41.3921592
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "road_width_m": 9.8,
+        "crossing_length_m": 4.5,
+        "crossing_bearing": 259.2,
+        "step_index": 21,
+        "endpoint": "entry",
+        "marker-color": "#CC0000",
+        "marker-symbol": "square",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1441087,
+          41.3921668
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "road_width_m": 9.8,
+        "crossing_length_m": 4.5,
+        "crossing_bearing": 259.2,
         "step_index": 21,
         "endpoint": "exit",
         "marker-color": "#CC0000",
@@ -651,8 +506,8 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.139754981208059,
-          41.39140006292016
+          2.1440556,
+          41.3921592
         ]
       }
     },
@@ -660,12 +515,12 @@
       "type": "Feature",
       "properties": {
         "kind": "crossing",
-        "road_type": "secondary_link",
+        "road_type": "secondary",
         "is_signaled": false,
         "road_width_m": 9.8,
-        "crossing_length_m": 9.8,
-        "crossing_bearing": 160.5,
-        "step_index": 26,
+        "crossing_length_m": 5.3,
+        "crossing_bearing": 263.8,
+        "step_index": 22,
         "stroke": "#CC0000",
         "stroke-width": 4
       },
@@ -673,12 +528,12 @@
         "type": "LineString",
         "coordinates": [
           [
-            2.1398115865484235,
-            41.39129522798801
+            2.1440556,
+            41.3921592
           ],
           [
-            2.139850613426766,
-            41.39121257200868
+            2.1439921264178823,
+            41.392154020161044
           ]
         ]
       }
@@ -687,12 +542,12 @@
       "type": "Feature",
       "properties": {
         "kind": "crossing",
-        "road_type": "secondary_link",
+        "road_type": "secondary",
         "is_signaled": false,
         "road_width_m": 9.8,
-        "crossing_length_m": 9.8,
-        "crossing_bearing": 160.5,
-        "step_index": 26,
+        "crossing_length_m": 5.3,
+        "crossing_bearing": 263.8,
+        "step_index": 22,
         "endpoint": "entry",
         "marker-color": "#CC0000",
         "marker-symbol": "square",
@@ -701,8 +556,8 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.1398115865484235,
-          41.39129522798801
+          2.1440556,
+          41.3921592
         ]
       }
     },
@@ -710,12 +565,12 @@
       "type": "Feature",
       "properties": {
         "kind": "crossing",
-        "road_type": "secondary_link",
+        "road_type": "secondary",
         "is_signaled": false,
         "road_width_m": 9.8,
-        "crossing_length_m": 9.8,
-        "crossing_bearing": 160.5,
-        "step_index": 26,
+        "crossing_length_m": 5.3,
+        "crossing_bearing": 263.8,
+        "step_index": 22,
         "endpoint": "exit",
         "marker-color": "#CC0000",
         "marker-symbol": "triangle",
@@ -724,8 +579,300 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.139850613426766,
-          41.39121257200868
+          2.1439921264178823,
+          41.392154020161044
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 6.0,
+        "crossing_length_m": 3.9,
+        "crossing_bearing": 253.4,
+        "step_index": 28,
+        "stroke": "#CC0000",
+        "stroke-width": 4
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            2.142790246849891,
+            41.39193026649419
+          ],
+          [
+            2.1427458,
+            41.3919203
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 6.0,
+        "crossing_length_m": 3.9,
+        "crossing_bearing": 253.4,
+        "step_index": 28,
+        "endpoint": "entry",
+        "marker-color": "#CC0000",
+        "marker-symbol": "square",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.142790246849891,
+          41.39193026649419
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 6.0,
+        "crossing_length_m": 3.9,
+        "crossing_bearing": 253.4,
+        "step_index": 28,
+        "endpoint": "exit",
+        "marker-color": "#CC0000",
+        "marker-symbol": "triangle",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1427458,
+          41.3919203
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 6.0,
+        "crossing_length_m": 3.6,
+        "crossing_bearing": 252.2,
+        "step_index": 29,
+        "stroke": "#CC0000",
+        "stroke-width": 4
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            2.1427458,
+            41.3919203
+          ],
+          [
+            2.142704287611444,
+            41.39191027172636
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 6.0,
+        "crossing_length_m": 3.6,
+        "crossing_bearing": 252.2,
+        "step_index": 29,
+        "endpoint": "entry",
+        "marker-color": "#CC0000",
+        "marker-symbol": "square",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1427458,
+          41.3919203
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 6.0,
+        "crossing_length_m": 3.6,
+        "crossing_bearing": 252.2,
+        "step_index": 29,
+        "endpoint": "exit",
+        "marker-color": "#CC0000",
+        "marker-symbol": "triangle",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.142704287611444,
+          41.39191027172636
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.6,
+        "crossing_bearing": 253.7,
+        "step_index": 36,
+        "stroke": "#CC0000",
+        "stroke-width": 4
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            2.141217728935232,
+            41.39153341532658
+          ],
+          [
+            2.141199,
+            41.3915293
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.6,
+        "crossing_bearing": 253.7,
+        "step_index": 36,
+        "endpoint": "entry",
+        "marker-color": "#CC0000",
+        "marker-symbol": "square",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.141217728935232,
+          41.39153341532658
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.6,
+        "crossing_bearing": 253.7,
+        "step_index": 36,
+        "endpoint": "exit",
+        "marker-color": "#CC0000",
+        "marker-symbol": "triangle",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.141199,
+          41.3915293
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.6,
+        "crossing_bearing": 251.9,
+        "step_index": 37,
+        "stroke": "#CC0000",
+        "stroke-width": 4
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            2.141199,
+            41.3915293
+          ],
+          [
+            2.1411804458241495,
+            41.39152475780562
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.6,
+        "crossing_bearing": 251.9,
+        "step_index": 37,
+        "endpoint": "entry",
+        "marker-color": "#CC0000",
+        "marker-symbol": "square",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.141199,
+          41.3915293
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.6,
+        "crossing_bearing": 251.9,
+        "step_index": 37,
+        "endpoint": "exit",
+        "marker-color": "#CC0000",
+        "marker-symbol": "triangle",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1411804458241495,
+          41.39152475780562
         ]
       }
     },
@@ -736,9 +883,9 @@
         "road_type": "primary",
         "is_signaled": false,
         "road_width_m": 13.0,
-        "crossing_length_m": 26.0,
+        "crossing_length_m": 13.0,
         "crossing_bearing": 251.5,
-        "step_index": 30,
+        "step_index": 42,
         "stroke": "#CC0000",
         "stroke-width": 4
       },
@@ -746,12 +893,12 @@
         "type": "LineString",
         "coordinates": [
           [
-            2.1397658908836017,
-            41.391158512123596
+            2.139766165055748,
+            41.391158581365
           ],
           [
-            2.1394709092847948,
-            41.39108428768809
+            2.1396184,
+            41.3911214
           ]
         ]
       }
@@ -763,9 +910,9 @@
         "road_type": "primary",
         "is_signaled": false,
         "road_width_m": 13.0,
-        "crossing_length_m": 26.0,
+        "crossing_length_m": 13.0,
         "crossing_bearing": 251.5,
-        "step_index": 30,
+        "step_index": 42,
         "endpoint": "entry",
         "marker-color": "#CC0000",
         "marker-symbol": "square",
@@ -774,8 +921,8 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.1397658908836017,
-          41.391158512123596
+          2.139766165055748,
+          41.391158581365
         ]
       }
     },
@@ -786,9 +933,9 @@
         "road_type": "primary",
         "is_signaled": false,
         "road_width_m": 13.0,
-        "crossing_length_m": 26.0,
+        "crossing_length_m": 13.0,
         "crossing_bearing": 251.5,
-        "step_index": 30,
+        "step_index": 42,
         "endpoint": "exit",
         "marker-color": "#CC0000",
         "marker-symbol": "triangle",
@@ -797,8 +944,81 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.1394709092847948,
-          41.39108428768809
+          2.1396184,
+          41.3911214
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "primary",
+        "is_signaled": false,
+        "road_width_m": 13.0,
+        "crossing_length_m": 12.9,
+        "crossing_bearing": 251.4,
+        "step_index": 43,
+        "stroke": "#CC0000",
+        "stroke-width": 4
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            2.1396184,
+            41.3911214
+          ],
+          [
+            2.1394710436766005,
+            41.39108417545792
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "primary",
+        "is_signaled": false,
+        "road_width_m": 13.0,
+        "crossing_length_m": 12.9,
+        "crossing_bearing": 251.4,
+        "step_index": 43,
+        "endpoint": "entry",
+        "marker-color": "#CC0000",
+        "marker-symbol": "square",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1396184,
+          41.3911214
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "primary",
+        "is_signaled": false,
+        "road_width_m": 13.0,
+        "crossing_length_m": 12.9,
+        "crossing_bearing": 251.4,
+        "step_index": 43,
+        "endpoint": "exit",
+        "marker-color": "#CC0000",
+        "marker-symbol": "triangle",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1394710436766005,
+          41.39108417545792
         ]
       }
     },
@@ -809,9 +1029,9 @@
         "road_type": "secondary",
         "is_signaled": false,
         "road_width_m": 13.0,
-        "crossing_length_m": 13.0,
-        "crossing_bearing": 234.5,
-        "step_index": 52,
+        "crossing_length_m": 6.9,
+        "crossing_bearing": 250.6,
+        "step_index": 48,
         "stroke": "#CC0000",
         "stroke-width": 4
       },
@@ -819,12 +1039,12 @@
         "type": "LineString",
         "coordinates": [
           [
-            2.1382758428915234,
-            41.38979077569017
+            2.137457173124325,
+            41.39056508159149
           ],
           [
-            2.1381487571748923,
-            41.38972282427487
+            2.137379,
+            41.3905444
           ]
         ]
       }
@@ -836,9 +1056,9 @@
         "road_type": "secondary",
         "is_signaled": false,
         "road_width_m": 13.0,
-        "crossing_length_m": 13.0,
-        "crossing_bearing": 234.5,
-        "step_index": 52,
+        "crossing_length_m": 6.9,
+        "crossing_bearing": 250.6,
+        "step_index": 48,
         "endpoint": "entry",
         "marker-color": "#CC0000",
         "marker-symbol": "square",
@@ -847,8 +1067,8 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.1382758428915234,
-          41.38979077569017
+          2.137457173124325,
+          41.39056508159149
         ]
       }
     },
@@ -859,9 +1079,9 @@
         "road_type": "secondary",
         "is_signaled": false,
         "road_width_m": 13.0,
-        "crossing_length_m": 13.0,
-        "crossing_bearing": 234.5,
-        "step_index": 52,
+        "crossing_length_m": 6.9,
+        "crossing_bearing": 250.6,
+        "step_index": 48,
         "endpoint": "exit",
         "marker-color": "#CC0000",
         "marker-symbol": "triangle",
@@ -870,8 +1090,227 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.1381487571748923,
-          41.38972282427487
+          2.137379,
+          41.3905444
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "road_width_m": 13.0,
+        "crossing_length_m": 6.9,
+        "crossing_bearing": 250.0,
+        "step_index": 49,
+        "stroke": "#CC0000",
+        "stroke-width": 4
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            2.137379,
+            41.3905444
+          ],
+          [
+            2.137300623032035,
+            41.39052304835324
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "road_width_m": 13.0,
+        "crossing_length_m": 6.9,
+        "crossing_bearing": 250.0,
+        "step_index": 49,
+        "endpoint": "entry",
+        "marker-color": "#CC0000",
+        "marker-symbol": "square",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.137379,
+          41.3905444
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "secondary",
+        "is_signaled": false,
+        "road_width_m": 13.0,
+        "crossing_length_m": 6.9,
+        "crossing_bearing": 250.0,
+        "step_index": 49,
+        "endpoint": "exit",
+        "marker-color": "#CC0000",
+        "marker-symbol": "triangle",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.137300623032035,
+          41.39052304835324
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.7,
+        "crossing_bearing": 244.1,
+        "step_index": 53,
+        "stroke": "#CC0000",
+        "stroke-width": 4
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            2.136849243450541,
+            41.390361288527465
+          ],
+          [
+            2.1368314,
+            41.3903548
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.7,
+        "crossing_bearing": 244.1,
+        "step_index": 53,
+        "endpoint": "entry",
+        "marker-color": "#CC0000",
+        "marker-symbol": "square",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.136849243450541,
+          41.390361288527465
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.7,
+        "crossing_bearing": 244.1,
+        "step_index": 53,
+        "endpoint": "exit",
+        "marker-color": "#CC0000",
+        "marker-symbol": "triangle",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1368314,
+          41.3903548
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.7,
+        "crossing_bearing": 252.2,
+        "step_index": 54,
+        "stroke": "#CC0000",
+        "stroke-width": 4
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            2.1368314,
+            41.3903548
+          ],
+          [
+            2.136811632596156,
+            41.39035004269949
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.7,
+        "crossing_bearing": 252.2,
+        "step_index": 54,
+        "endpoint": "entry",
+        "marker-color": "#CC0000",
+        "marker-symbol": "square",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.1368314,
+          41.3903548
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "crossing",
+        "road_type": "residential",
+        "is_signaled": false,
+        "road_width_m": 3.2,
+        "crossing_length_m": 1.7,
+        "crossing_bearing": 252.2,
+        "step_index": 54,
+        "endpoint": "exit",
+        "marker-color": "#CC0000",
+        "marker-symbol": "triangle",
+        "marker-size": "small"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          2.136811632596156,
+          41.39035004269949
         ]
       }
     },
@@ -882,9 +1321,9 @@
         "road_type": "residential",
         "is_signaled": false,
         "road_width_m": 6.0,
-        "crossing_length_m": 6.0,
-        "crossing_bearing": 232.9,
-        "step_index": 62,
+        "crossing_length_m": 6.3,
+        "crossing_bearing": 251.2,
+        "step_index": 60,
         "stroke": "#CC0000",
         "stroke-width": 4
       },
@@ -892,12 +1331,12 @@
         "type": "LineString",
         "coordinates": [
           [
-            2.1369786958214787,
-            41.389067460954514
+            2.1343858906923696,
+            41.389736817987675
           ],
           [
-            2.136921304192876,
-            41.38903493903834
+            2.134314579182196,
+            41.38971863142705
           ]
         ]
       }
@@ -909,9 +1348,9 @@
         "road_type": "residential",
         "is_signaled": false,
         "road_width_m": 6.0,
-        "crossing_length_m": 6.0,
-        "crossing_bearing": 232.9,
-        "step_index": 62,
+        "crossing_length_m": 6.3,
+        "crossing_bearing": 251.2,
+        "step_index": 60,
         "endpoint": "entry",
         "marker-color": "#CC0000",
         "marker-symbol": "square",
@@ -920,8 +1359,8 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.1369786958214787,
-          41.389067460954514
+          2.1343858906923696,
+          41.389736817987675
         ]
       }
     },
@@ -932,9 +1371,9 @@
         "road_type": "residential",
         "is_signaled": false,
         "road_width_m": 6.0,
-        "crossing_length_m": 6.0,
-        "crossing_bearing": 232.9,
-        "step_index": 62,
+        "crossing_length_m": 6.3,
+        "crossing_bearing": 251.2,
+        "step_index": 60,
         "endpoint": "exit",
         "marker-color": "#CC0000",
         "marker-symbol": "triangle",
@@ -943,227 +1382,8 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          2.136921304192876,
-          41.38903493903834
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.0,
-        "crossing_length_m": 6.0,
-        "crossing_bearing": 326.7,
-        "step_index": 66,
-        "stroke": "#CC0000",
-        "stroke-width": 4
-      },
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            2.136396759708263,
-            41.38877955067344
-          ],
-          [
-            2.1363572402780306,
-            41.38882464932317
-          ]
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.0,
-        "crossing_length_m": 6.0,
-        "crossing_bearing": 326.7,
-        "step_index": 66,
-        "endpoint": "entry",
-        "marker-color": "#CC0000",
-        "marker-symbol": "square",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.136396759708263,
-          41.38877955067344
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.0,
-        "crossing_length_m": 6.0,
-        "crossing_bearing": 326.7,
-        "step_index": 66,
-        "endpoint": "exit",
-        "marker-color": "#CC0000",
-        "marker-symbol": "triangle",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.1363572402780306,
-          41.38882464932317
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.0,
-        "crossing_length_m": 6.0,
-        "crossing_bearing": 234.4,
-        "step_index": 70,
-        "stroke": "#CC0000",
-        "stroke-width": 4
-      },
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            2.1355539219094593,
-            41.38848712462663
-          ],
-          [
-            2.1354954781046755,
-            41.38845567536598
-          ]
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.0,
-        "crossing_length_m": 6.0,
-        "crossing_bearing": 234.4,
-        "step_index": 70,
-        "endpoint": "entry",
-        "marker-color": "#CC0000",
-        "marker-symbol": "square",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.1355539219094593,
-          41.38848712462663
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.0,
-        "crossing_length_m": 6.0,
-        "crossing_bearing": 234.4,
-        "step_index": 70,
-        "endpoint": "exit",
-        "marker-color": "#CC0000",
-        "marker-symbol": "triangle",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.1354954781046755,
-          41.38845567536598
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.0,
-        "crossing_length_m": 6.2,
-        "crossing_bearing": 71.2,
-        "step_index": 77,
-        "stroke": "#CC0000",
-        "stroke-width": 4
-      },
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [
-          [
-            2.1346942397340207,
-            41.38932285372353
-          ],
-          [
-            2.13476496027582,
-            41.38934094626565
-          ]
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.0,
-        "crossing_length_m": 6.2,
-        "crossing_bearing": 71.2,
-        "step_index": 77,
-        "endpoint": "entry",
-        "marker-color": "#CC0000",
-        "marker-symbol": "square",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.1346942397340207,
-          41.38932285372353
-        ]
-      }
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "kind": "crossing",
-        "road_type": "residential",
-        "is_signaled": false,
-        "road_width_m": 6.0,
-        "crossing_length_m": 6.2,
-        "crossing_bearing": 71.2,
-        "step_index": 77,
-        "endpoint": "exit",
-        "marker-color": "#CC0000",
-        "marker-symbol": "triangle",
-        "marker-size": "small"
-      },
-      "geometry": {
-        "type": "Point",
-        "coordinates": [
-          2.13476496027582,
-          41.38934094626565
+          2.134314579182196,
+          41.38971863142705
         ]
       }
     }

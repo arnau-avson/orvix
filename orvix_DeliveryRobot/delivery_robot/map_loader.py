@@ -14,14 +14,23 @@ _CACHE_DIR.mkdir(exist_ok=True)
 # - pedestrian: pedestrianized streets (e.g. La Rambla)
 # - path: shared paths (parks, etc.)
 # - living_street: shared-surface streets where pedestrians have priority
-# Excluded: residential/service/tertiary roads (their walkability comes from
-# adjacent sidewalks that OSM rarely models as separate geometry), and steps
-# (a wheeled robot cannot climb stairs).
+# Excluded:
+# - residential/service/tertiary roads (their walkability comes from
+#   adjacent sidewalks that OSM rarely models as separate geometry)
+# - steps (a wheeled robot cannot climb stairs)
+# - indoor=yes/room/corridor/area (inside a building — robot can't enter)
+# - tunnel=yes/building_passage (under a building / through a passage that
+#   may be gated)
+# - access private/no/customers
 _STRICT_PEDESTRIAN_FILTER = (
     '["highway"~"footway|pedestrian|path|living_street"]'
     '["foot"!~"no"]'
-    '["access"!~"private|no"]'
+    '["access"!~"private|no|customers"]'
+    '["indoor"!~"yes|room|corridor|area"]'
+    '["tunnel"!~"yes|building_passage"]'
 )
+# Cache version bump — invalidates older cached graphs that used the looser filter.
+_STRICT_FILTER_VERSION = "v2"
 
 
 def _cache_path(key: str) -> Path:
@@ -56,7 +65,7 @@ def load_walk_graph_from_place(
     strict_pedestrian: bool = False,
 ) -> nx.MultiDiGraph:
     """Load the pedestrian network for a named place (e.g. 'Barcelona, Spain')."""
-    suffix = "strict" if strict_pedestrian else "walk"
+    suffix = f"strict_{_STRICT_FILTER_VERSION}" if strict_pedestrian else "walk"
     cache = _cache_path(f"place_{place}_{suffix}")
     if use_cache and cache.exists():
         return ox.load_graphml(cache)
@@ -89,7 +98,7 @@ def load_walk_graph(
       where OSM has them, but the graph may be disconnected in areas with
       poor sidewalk mapping.
     """
-    suffix = "strict" if strict_pedestrian else "walk"
+    suffix = f"strict_{_STRICT_FILTER_VERSION}" if strict_pedestrian else "walk"
     cache = _cache_path(
         f"point_{center.lat:.5f}_{center.lon:.5f}_r{int(radius_m)}_{suffix}"
     )
