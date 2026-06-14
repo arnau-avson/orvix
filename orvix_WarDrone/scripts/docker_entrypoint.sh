@@ -21,14 +21,11 @@ case "${1:-bash}" in
     test-unit)
         echo "=== Running unit tests (no ROS 2 needed) ==="
         cd /ws
-        python3 -m pytest src/wardrone_driver/test/test_mavsdk_client.py -v
-        python3 -m pytest src/wardrone_navigation/test/test_mission_loader.py -v
-        python3 -m pytest src/wardrone_navigation/test/test_waypoint_navigator.py -v
-        python3 -m pytest src/wardrone_vision/test/test_yolo_wrapper.py -v
-        python3 -m pytest src/wardrone_vision/test/test_object_tracker.py -v
-        python3 -m pytest src/wardrone_vision/test/test_tracker_node.py -v
-        python3 -m pytest src/wardrone_mission/test/test_state_machine.py -v
-        python3 -m pytest src/wardrone_vio/test/test_vio_evaluator.py -v
+        python3 -m pytest src/wardrone_driver/test/ -v
+        python3 -m pytest src/wardrone_navigation/test/ -v
+        python3 -m pytest src/wardrone_vision/test/ -v
+        python3 -m pytest src/wardrone_mission/test/ -v
+        python3 -m pytest src/wardrone_vio/test/ -v
         echo "=== Unit tests complete ==="
         ;;
 
@@ -47,14 +44,11 @@ case "${1:-bash}" in
         cd /ws
         # Unit tests first (fast)
         echo "--- Unit tests ---"
-        python3 -m pytest src/wardrone_driver/test/test_mavsdk_client.py -v
-        python3 -m pytest src/wardrone_navigation/test/test_mission_loader.py -v
-        python3 -m pytest src/wardrone_navigation/test/test_waypoint_navigator.py -v
-        python3 -m pytest src/wardrone_vision/test/test_yolo_wrapper.py -v
-        python3 -m pytest src/wardrone_vision/test/test_object_tracker.py -v
-        python3 -m pytest src/wardrone_vision/test/test_tracker_node.py -v
-        python3 -m pytest src/wardrone_mission/test/test_state_machine.py -v
-        python3 -m pytest src/wardrone_vio/test/test_vio_evaluator.py -v
+        python3 -m pytest src/wardrone_driver/test/ -v
+        python3 -m pytest src/wardrone_navigation/test/ -v
+        python3 -m pytest src/wardrone_vision/test/ -v
+        python3 -m pytest src/wardrone_mission/test/ -v
+        python3 -m pytest src/wardrone_vio/test/ -v
         # Colcon tests
         echo "--- Colcon build + test ---"
         colcon build --symlink-install
@@ -70,7 +64,7 @@ case "${1:-bash}" in
         colcon build --symlink-install
         source install/setup.bash
         ros2 launch wardrone_bringup sitl_driver_only.launch.py \
-            connection_url:="udp://px4-sitl:14540"
+            connection_url:="udp://:14540"
         ;;
 
     launch-navigation)
@@ -79,7 +73,7 @@ case "${1:-bash}" in
         colcon build --symlink-install
         source install/setup.bash
         ros2 launch wardrone_bringup sitl_navigation.launch.py \
-            connection_url:="udp://px4-sitl:14540"
+            connection_url:="udp://:14540"
         ;;
 
     launch-full)
@@ -88,7 +82,7 @@ case "${1:-bash}" in
         colcon build --symlink-install
         source install/setup.bash
         ros2 launch wardrone_bringup sitl_full.launch.py \
-            connection_url:="udp://px4-sitl:14540"
+            connection_url:="udp://:14540"
         ;;
 
     bash)

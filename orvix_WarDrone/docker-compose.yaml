@@ -6,6 +6,9 @@
 #   wardrone-dev   -> Contenedor de desarrollo ROS 2 Humble
 #   px4-sitl       -> Simulador PX4 SITL (headless, sin GUI)
 #
+# wardrone-dev shares the PX4 network namespace so both
+# containers see the same localhost (MAVLink on 127.0.0.1:14540).
+#
 # Comandos rapidos:
 #
 #   # Construir imagenes
@@ -36,35 +39,7 @@
 
 services:
   # ----------------------------------------------------------
-  # ROS 2 Development & Testing Container
-  # ----------------------------------------------------------
-  wardrone-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: wardrone-dev
-    stdin_open: true
-    tty: true
-    volumes:
-      # Mount source code for live editing from Windows
-      - ./src:/ws/src
-      - ./scripts:/ws/scripts
-      # Persist build artifacts between runs
-      - wardrone-build:/ws/build
-      - wardrone-install:/ws/install
-      - wardrone-log:/ws/log
-    networks:
-      - wardrone-net
-    depends_on:
-      px4-sitl:
-        condition: service_started
-        required: false
-    environment:
-      - ROS_DOMAIN_ID=0
-      - PYTHONDONTWRITEBYTECODE=1
-
-  # ----------------------------------------------------------
-  # PX4 SITL Headless Simulator
+  # PX4 SITL Headless Simulator (starts first)
   # ----------------------------------------------------------
   px4-sitl:
     build:
@@ -75,15 +50,36 @@ services:
       - "14540:14540/udp"
       - "14550:14550/udp"
       - "18570:18570/udp"
-    networks:
-      - wardrone-net
     environment:
       - HEADLESS=1
       - PX4_SIM_HOST_ADDR=0.0.0.0
 
-networks:
-  wardrone-net:
-    driver: bridge
+  # ----------------------------------------------------------
+  # ROS 2 Development & Testing Container
+  # Shares PX4's network so localhost MAVLink works directly.
+  # ----------------------------------------------------------
+  wardrone-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    stdin_open: true
+    tty: true
+    # Share PX4's network namespace: localhost is the same for both
+    network_mode: "service:px4-sitl"
+    volumes:
+      # Mount source code for live editing from Windows
+      - ./src:/ws/src
+      - ./scripts:/ws/scripts
+      # Persist build artifacts between runs
+      - wardrone-build:/ws/build
+      - wardrone-install:/ws/install
+      - wardrone-log:/ws/log
+    depends_on:
+      px4-sitl:
+        condition: service_started
+    environment:
+      - ROS_DOMAIN_ID=0
+      - PYTHONDONTWRITEBYTECODE=1
 
 volumes:
   wardrone-build:

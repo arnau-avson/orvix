@@ -20,14 +20,11 @@ if [ "$MODE" = "unit" ] || [ "$MODE" = "all" ]; then
     echo ""
 
     # Test pure Python modules that don't need ROS 2
-    python -m pytest src/wardrone_driver/test/test_mavsdk_client.py -v
-    python -m pytest src/wardrone_navigation/test/test_mission_loader.py -v
-    python -m pytest src/wardrone_navigation/test/test_waypoint_navigator.py -v
-    python -m pytest src/wardrone_vision/test/test_yolo_wrapper.py -v
-    python -m pytest src/wardrone_vision/test/test_object_tracker.py -v
-    python -m pytest src/wardrone_vision/test/test_tracker_node.py -v
-    python -m pytest src/wardrone_mission/test/test_state_machine.py -v
-    python -m pytest src/wardrone_vio/test/test_vio_evaluator.py -v
+    python -m pytest src/wardrone_driver/test/ -v
+    python -m pytest src/wardrone_navigation/test/ -v
+    python -m pytest src/wardrone_vision/test/ -v
+    python -m pytest src/wardrone_mission/test/ -v
+    python -m pytest src/wardrone_vio/test/ -v
 
     echo ""
     echo "=== Unit tests complete ==="

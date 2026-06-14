@@ -4,7 +4,7 @@
   <name>wardrone_mission</name>
   <version>0.1.0</version>
   <description>Mission state machine controller for the WarDrone</description>
-  <maintainer email="arnau@todo.todo">arnau</maintainer>
+  <maintainer email="arnau@avson.eu">arnau</maintainer>
   <license>MIT</license>
 
   <depend>rclpy</depend>
@@ -12,6 +12,9 @@
   <depend>geometry_msgs</depend>
   <depend>wardrone_interfaces</depend>
 
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
 
   <export>

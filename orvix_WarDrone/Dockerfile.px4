@@ -74,6 +74,12 @@ RUN sed -i 's/\r$//' /tmp/patch_px4_version.py && python3 /tmp/patch_px4_version
 WORKDIR ${PX4_HOME}
 RUN DONT_RUN=1 make px4_sitl_default
 
+# ---- Enable MAVLink broadcast for Docker networking ----
+# PX4 defaults to localhost-only. Append broadcast params to the SIH airframe
+# so other containers on the Docker network can receive MAVLink.
+RUN echo 'param set MAV_0_BROADCAST 1' >> ${PX4_HOME}/build/px4_sitl_default/etc/init.d-posix/airframes/10040_sihsim_quadx \
+    && echo 'param set MAV_1_BROADCAST 1' >> ${PX4_HOME}/build/px4_sitl_default/etc/init.d-posix/airframes/10040_sihsim_quadx
+
 # ---- Expose MAVLink ports ----
 # 14540: MAVSDK default
 # 14550: QGroundControl default

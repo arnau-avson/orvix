@@ -13,7 +13,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='arnau',
-    maintainer_email='arnau@todo.todo',
+    maintainer_email='arnau@avson.eu',
     description='Visual-Inertial Odometry integration for GPS-denied navigation',
     license='MIT',
     tests_require=['pytest'],

@@ -14,7 +14,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='arnau',
-    maintainer_email='arnau@todo.todo',
+    maintainer_email='arnau@avson.eu',
     description='MAVSDK-to-ROS 2 bridge for PX4 flight controller communication',
     license='MIT',
     tests_require=['pytest'],

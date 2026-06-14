@@ -4,7 +4,7 @@
   <name>wardrone_bringup</name>
   <version>0.1.0</version>
   <description>Launch files, configuration, and mission files for the WarDrone</description>
-  <maintainer email="arnau@todo.todo">arnau</maintainer>
+  <maintainer email="arnau@avson.eu">arnau</maintainer>
   <license>MIT</license>
 
   <exec_depend>rclpy</exec_depend>

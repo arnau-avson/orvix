@@ -1,16 +1,16 @@
 #!/bin/bash
 set -e
 
-echo "=== Starting PX4 SITL (headless) ==="
-echo "MAVLink available on UDP ports 14540, 14550"
+echo "=== Starting PX4 SITL (SIH, headless) ==="
+echo "MAVLink broadcast enabled for Docker networking"
 echo ""
 
-cd "${PX4_HOME}"
+BUILD_DIR="${PX4_HOME}/build/px4_sitl_default"
 
-export PX4_SYS_AUTOSTART=4001
-export PX4_SIM_MODEL=none_iris
+export PX4_SYS_AUTOSTART=10040
+export PX4_SIM_MODEL=sihsim_quadx
 
-exec ./build/px4_sitl_default/bin/px4 \
-    -s etc/init.d-posix/rcS \
-    -w sitl_workspace \
+exec "${BUILD_DIR}/bin/px4" \
+    -s "${BUILD_DIR}/etc/init.d-posix/rcS" \
+    -w "${BUILD_DIR}" \
     -d

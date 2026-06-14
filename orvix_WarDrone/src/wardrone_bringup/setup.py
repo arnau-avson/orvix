@@ -18,7 +18,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='arnau',
-    maintainer_email='arnau@todo.todo',
+    maintainer_email='arnau@avson.eu',
     description='Launch files, configuration, and mission files for the WarDrone',
     license='MIT',
     tests_require=['pytest'],
