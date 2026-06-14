@@ -1,0 +1,5 @@
+string mission_file_path
+---
+bool success
+string message
+uint32 waypoint_count

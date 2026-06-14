@@ -1,0 +1,8 @@
+wardrone_interfaces/Waypoint waypoint
+---
+bool success
+string message
+float32 final_distance_m
+---
+float32 distance_remaining_m
+float32 eta_s

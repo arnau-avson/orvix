@@ -1,0 +1,19 @@
+mavsdk_bridge:
+  ros__parameters:
+    # MAVSDK connection
+    # SITL default: udp://:14540
+    # Real hardware: serial:///dev/ttyACM0:921600
+    connection_url: "udp://:14540"
+    system_id: 1
+
+    # Publishing rates
+    telemetry_rate_hz: 10.0
+    battery_rate_hz: 1.0
+    state_rate_hz: 5.0
+
+    # Offboard control
+    offboard_rate_hz: 20.0
+
+    # Timeouts
+    connection_timeout_s: 30.0
+    command_timeout_s: 10.0

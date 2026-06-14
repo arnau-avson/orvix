@@ -1,0 +1,15 @@
+build/
+install/
+log/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.git/
+.vscode/
+.idea/
+*.pt
+*.onnx
+*.engine
+Thumbs.db
+.DS_Store

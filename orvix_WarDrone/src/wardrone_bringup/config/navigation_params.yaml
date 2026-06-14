@@ -1,0 +1,16 @@
+waypoint_navigator:
+  ros__parameters:
+    waypoint_acceptance_radius_m: 2.0
+    default_altitude_m: 10.0
+    default_speed_m_s: 5.0
+    mission_file: ""
+
+safety_monitor:
+  ros__parameters:
+    battery_warning_pct: 30.0
+    battery_critical_pct: 15.0
+    link_timeout_s: 5.0
+    telemetry_timeout_s: 3.0
+    gps_min_satellites: 6
+    action_on_warning: "RTL"
+    action_on_critical: "LAND"

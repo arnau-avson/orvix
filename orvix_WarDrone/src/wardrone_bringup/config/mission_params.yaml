@@ -1,0 +1,10 @@
+mission_controller:
+  ros__parameters:
+    auto_arm: false
+    mission_file: ""
+    mission_type: "navigate_and_track"
+    search_pattern: "expanding_square"
+    search_timeout_s: 60.0
+    search_radius_m: 50.0
+    takeoff_altitude_m: 10.0
+    rtl_altitude_m: 15.0

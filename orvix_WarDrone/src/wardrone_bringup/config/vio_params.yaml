@@ -1,0 +1,13 @@
+vio_bridge:
+  ros__parameters:
+    vio_source: "vins_fusion"
+    vio_input_topic: "/vins_fusion/odometry"
+    enable_sim_ground_truth: false
+    sim_ground_truth_topic: "/gazebo/ground_truth/pose"
+    body_to_camera_transform: [0.1, 0.0, -0.05, 0.0, 0.0, 0.0]
+    publish_rate_hz: 30.0
+
+vio_evaluator:
+  ros__parameters:
+    evaluation_rate_hz: 1.0
+    ground_truth_topic: "/gazebo/ground_truth/pose"

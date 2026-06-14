@@ -1,0 +1,91 @@
+# ============================================================
+# WarDrone Docker Compose
+# ============================================================
+#
+# Servicios:
+#   wardrone-dev   -> Contenedor de desarrollo ROS 2 Humble
+#   px4-sitl       -> Simulador PX4 SITL (headless, sin GUI)
+#
+# Comandos rapidos:
+#
+#   # Construir imagenes
+#   docker compose build
+#
+#   # Solo tests unitarios (rapido, no necesita PX4)
+#   docker compose run wardrone-dev test-unit
+#
+#   # Build del workspace ROS 2
+#   docker compose run wardrone-dev colcon-build
+#
+#   # Todos los tests (unit + colcon)
+#   docker compose run wardrone-dev test-all
+#
+#   # Shell interactivo para desarrollo
+#   docker compose run wardrone-dev bash
+#
+#   # Levantar PX4 SITL + stack completo
+#   docker compose up
+#
+#   # Solo PX4 SITL (para conectar desde otro terminal)
+#   docker compose up px4-sitl
+#
+#   # Lanzar nodo driver contra PX4 SITL
+#   docker compose run wardrone-dev launch-driver
+#
+# ============================================================
+
+services:
+  # ----------------------------------------------------------
+  # ROS 2 Development & Testing Container
+  # ----------------------------------------------------------
+  wardrone-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wardrone-dev
+    stdin_open: true
+    tty: true
+    volumes:
+      # Mount source code for live editing from Windows
+      - ./src:/ws/src
+      - ./scripts:/ws/scripts
+      # Persist build artifacts between runs
+      - wardrone-build:/ws/build
+      - wardrone-install:/ws/install
+      - wardrone-log:/ws/log
+    networks:
+      - wardrone-net
+    depends_on:
+      px4-sitl:
+        condition: service_started
+        required: false
+    environment:
+      - ROS_DOMAIN_ID=0
+      - PYTHONDONTWRITEBYTECODE=1
+
+  # ----------------------------------------------------------
+  # PX4 SITL Headless Simulator
+  # ----------------------------------------------------------
+  px4-sitl:
+    build:
+      context: .
+      dockerfile: Dockerfile.px4
+    container_name: px4-sitl
+    ports:
+      - "14540:14540/udp"
+      - "14550:14550/udp"
+      - "18570:18570/udp"
+    networks:
+      - wardrone-net
+    environment:
+      - HEADLESS=1
+      - PX4_SIM_HOST_ADDR=0.0.0.0
+
+networks:
+  wardrone-net:
+    driver: bridge
+
+volumes:
+  wardrone-build:
+  wardrone-install:
+  wardrone-log:

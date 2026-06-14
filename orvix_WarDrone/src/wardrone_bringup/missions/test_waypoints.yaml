@@ -1,0 +1,26 @@
+# Test mission: varied waypoints with different altitudes and loiter
+# Default PX4 SITL home: 47.397742, 8.545594
+mission:
+  id: "test_waypoints_001"
+  default_altitude_m: 10.0
+  default_speed_m_s: 3.0
+  waypoints:
+    - latitude_deg: 47.39800
+      longitude_deg: 8.54559
+      altitude_m: 10.0
+      speed_m_s: 5.0
+    - latitude_deg: 47.39820
+      longitude_deg: 8.54650
+      altitude_m: 15.0
+      loiter_time_s: 5.0
+    - latitude_deg: 47.39780
+      longitude_deg: 8.54750
+      altitude_m: 12.0
+      speed_m_s: 2.0
+    - latitude_deg: 47.39750
+      longitude_deg: 8.54650
+      altitude_m: 8.0
+      loiter_time_s: 10.0
+    - latitude_deg: 47.39774
+      longitude_deg: 8.54559
+      altitude_m: 10.0

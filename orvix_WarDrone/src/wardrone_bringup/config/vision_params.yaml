@@ -1,0 +1,35 @@
+camera:
+  ros__parameters:
+    source: "gazebo"
+    gazebo_image_topic: "/world/default/model/x500_depth_0/link/camera_link/sensor/IMX214/image"
+    device_id: 0
+    width: 640
+    height: 480
+    fps: 30
+
+detector:
+  ros__parameters:
+    model_path: "yolo11n.pt"
+    confidence_threshold: 0.5
+    target_classes: [0, 2, 5, 7]  # person, car, bus, truck
+    inference_size: 640
+    device: "cpu"
+    publish_debug_image: true
+    max_detections_per_frame: 20
+
+tracker:
+  ros__parameters:
+    tracker_type: "sort"
+    max_lost_frames: 30
+    lock_on_iou_threshold: 0.3
+    pursuit_speed_m_s: 3.0
+    pursuit_altitude_m: 8.0
+    pid_yaw_kp: 0.5
+    pid_yaw_ki: 0.0
+    pid_yaw_kd: 0.1
+    pid_forward_kp: 0.3
+    pid_forward_ki: 0.0
+    pid_forward_kd: 0.05
+    search_yaw_rate_deg_s: 30.0
+    target_size_ratio_min: 0.01
+    target_size_ratio_max: 0.4
