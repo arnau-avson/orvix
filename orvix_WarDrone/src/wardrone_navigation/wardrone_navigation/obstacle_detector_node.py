@@ -588,10 +588,10 @@ class ObstacleDetectorNode(Node):
                 threat = max(threat, THREAT_CAUTION)
 
         # Fast approach velocity is inherently dangerous even at distance
-        if approach_vel > 15.0:  # >54 km/h
-            threat = max(threat, THREAT_WARNING)
-        elif approach_vel > 25.0:  # >90 km/h
+        if approach_vel > 25.0:  # >90 km/h
             threat = max(threat, THREAT_CRITICAL)
+        elif approach_vel > 15.0:  # >54 km/h
+            threat = max(threat, THREAT_WARNING)
 
         return threat
 
