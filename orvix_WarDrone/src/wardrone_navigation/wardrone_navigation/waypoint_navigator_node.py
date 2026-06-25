@@ -12,7 +12,6 @@ from rclpy.node import Node
 from rclpy.action import ActionServer, GoalResponse, CancelResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 
-from geometry_msgs.msg import PoseStamped
 from wardrone_interfaces.msg import Telemetry, VehicleState, Waypoint
 from wardrone_interfaces.srv import LoadMission
 from wardrone_interfaces.action import ExecuteMission, GoToWaypoint
@@ -60,7 +59,7 @@ class WaypointNavigatorNode(Node):
         cb_group = ReentrantCallbackGroup()
 
         # Publishers
-        self._pub_cmd_position = self.create_publisher(PoseStamped, '/wardrone/cmd_position', 10)
+        self._pub_cmd_goto = self.create_publisher(Waypoint, '/wardrone/cmd_goto_global', 10)
         self._pub_current_wp = self.create_publisher(Waypoint, '/wardrone/navigation/current_waypoint', 10)
 
         # Subscribers
@@ -254,15 +253,13 @@ class WaypointNavigatorNode(Node):
                 self.get_logger().info(f'Waypoint {wp_index+1} reached (dist={distance:.1f}m)')
                 return True
 
-            # Send position command (simplified: use lat/lon as local offsets)
-            # In a real implementation, this would convert to local NED/ENU coordinates
-            cmd = PoseStamped()
-            cmd.header.stamp = self.get_clock().now().to_msg()
-            cmd.header.frame_id = 'map'
-            # Note: actual lat/lon to local frame conversion would happen here
-            # For SITL, PX4 handles this via the mission/goto command
-            cmd.pose.position.z = float(wp.altitude_m)
-            self._pub_cmd_position.publish(cmd)
+            # Send GPS goto command to MAVSDK bridge
+            cmd = Waypoint()
+            cmd.latitude_deg = wp.latitude_deg
+            cmd.longitude_deg = wp.longitude_deg
+            cmd.altitude_m = float(wp.altitude_m)
+            cmd.speed_m_s = float(wp.speed_m_s if wp.speed_m_s > 0 else self._default_speed)
+            self._pub_cmd_goto.publish(cmd)
 
             await self._sleep(0.2)  # 5 Hz update rate
 
@@ -308,12 +305,13 @@ class WaypointNavigatorNode(Node):
             if distance < acceptance:
                 break
 
-            # Send position command
-            cmd = PoseStamped()
-            cmd.header.stamp = self.get_clock().now().to_msg()
-            cmd.header.frame_id = 'map'
-            cmd.pose.position.z = float(wp.altitude_m)
-            self._pub_cmd_position.publish(cmd)
+            # Send GPS goto command to MAVSDK bridge
+            cmd = Waypoint()
+            cmd.latitude_deg = wp.latitude_deg
+            cmd.longitude_deg = wp.longitude_deg
+            cmd.altitude_m = float(wp.altitude_m)
+            cmd.speed_m_s = float(wp.speed_m_s if wp.speed_m_s > 0 else self._default_speed)
+            self._pub_cmd_goto.publish(cmd)
 
             await self._sleep(0.2)
 

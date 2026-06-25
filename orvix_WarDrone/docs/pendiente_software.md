@@ -6,26 +6,32 @@
 
 ## 1. Aterrizaje automatico al completar mision
 
-- **Estado**: Esqueleto (action client creado pero nunca invocado)
-- **Problema**: El driver PX4 tiene la accion `Land` implementada y funcional, pero el mission controller nunca llama a `send_goal()`. Cuando la mision termina, el drone se queda en hover indefinidamente.
-- **Que falta**:
-  - Conectar el estado `NAVIGATE -> RTL -> LAND -> DONE` en el mission controller
-  - Invocar la accion `Land` cuando se completa el ultimo waypoint
-  - Gestionar el evento `LANDED` para transicionar a `DONE`
-- **Archivos afectados**: `src/wardrone_mission/wardrone_mission/mission_controller_node.py`
+- **Estado**: IMPLEMENTADO
+- **Solucion**: El mission controller ahora implementa el flujo completo TAKEOFF -> NAVIGATE -> RTL -> LAND -> DONE:
+  - En estado TAKEOFF: envia la accion `Takeoff` al MAVSDK bridge y espera `TAKEOFF_COMPLETE`
+  - En estado NAVIGATE: envia la accion `ExecuteMission` al waypoint navigator y espera `MISSION_COMPLETE`
+  - En estado RTL: comanda modo de vuelo RTL via servicio `SetFlightMode` y monitoriza distancia a home (haversine < 5m + alt < 3m -> `HOME_REACHED`)
+  - En estado LAND: envia la accion `Land` al MAVSDK bridge; el evento `LANDED` se detecta cuando `is_in_air` cambia a false
+  - Cada accion se envia una sola vez (flags `_takeoff_sent`, `_navigate_sent`, etc.) y se reintentan si el servidor no esta disponible
+  - Posicion home se registra automaticamente del primer telemetry con `is_home_position_ok`
+- **Archivos**:
+  - `src/wardrone_mission/wardrone_mission/mission_controller_node.py`
 - **Hardware necesario**: Ninguno (solo software)
 
 ---
 
 ## 2. Control de velocidad crucero
 
-- **Estado**: Parcial (velocidad parseada pero no enviada al vehiculo)
-- **Problema**: El campo `speed_m_s` se lee del YAML de mision y se usa para calcular ETA, pero no se transmite a PX4. El drone vuela a la velocidad por defecto de PX4.
-- **Que falta**:
-  - Enviar setpoint de velocidad a PX4 via MAVSDK (`set_velocity_ned` o parametro en `goto`)
-  - Publicar un mensaje de tipo `TwistStamped` o usar la API de velocidad de MAVSDK
-  - Aplicar la velocidad por waypoint (ya disponible en `WaypointData.speed_m_s`)
-- **Archivos afectados**: `src/wardrone_navigation/wardrone_navigation/waypoint_navigator_node.py`, `src/wardrone_driver/wardrone_driver/mavsdk_bridge_node.py`
+- **Estado**: IMPLEMENTADO
+- **Solucion**: La velocidad por waypoint ahora se transmite a PX4 en toda la cadena:
+  - `waypoint_navigator_node` publica mensajes `Waypoint` en `/wardrone/cmd_goto_global` con `speed_m_s` del YAML de mision (o `default_speed_m_s` como fallback)
+  - `mavsdk_bridge_node` recibe el Waypoint y llama a `set_maximum_speed(speed_m_s)` via MAVSDK antes de cada `goto_location`
+  - `mavsdk_client` expone `set_maximum_speed()` que usa `drone.action.set_maximum_speed()`
+  - La navegacion usa `goto_location` (PX4 native guided mode) en vez de offboard NED, lo que permite que PX4 gestione la velocidad y la ruta internamente
+- **Archivos**:
+  - `src/wardrone_navigation/wardrone_navigation/waypoint_navigator_node.py`
+  - `src/wardrone_driver/wardrone_driver/mavsdk_bridge_node.py`
+  - `src/wardrone_driver/wardrone_driver/mavsdk_client.py`
 - **Hardware necesario**: Ninguno (solo software)
 
 ---
@@ -88,8 +94,8 @@
 
 | # | Funcionalidad | Estado | Hardware extra |
 |---|--------------|--------|----------------|
-| 1 | Aterrizaje automatico | Pendiente (solo software) | No |
-| 2 | Control de velocidad | Pendiente (solo software) | No |
+| 1 | Aterrizaje automatico | **IMPLEMENTADO** | No |
+| 2 | Control de velocidad | **IMPLEMENTADO** | No |
 | 3 | Deteccion de obstaculos | **IMPLEMENTADO** | Camaras (~40-48 EUR) |
 | 4 | Evasion reactiva | **IMPLEMENTADO** | Mismas camaras |
 | 5 | Deteccion omnidireccional | **IMPLEMENTADO** | Mismas camaras (8 sectores) |
@@ -98,10 +104,12 @@
 
 ## Orden de implementacion recomendado
 
-1. **Aterrizaje automatico** -- solo software, se puede hacer ya
-2. **Control de velocidad** -- solo software, se puede hacer ya
+1. ~~**Aterrizaje automatico**~~ -- HECHO
+2. ~~**Control de velocidad**~~ -- HECHO
 3. ~~**Deteccion frontal + evasion**~~ -- HECHO
 4. ~~**Deteccion trasera/lateral**~~ -- HECHO
+
+> **Todas las funcionalidades de software estan implementadas.** Solo falta montar el hardware de camaras (puntos 3-5).
 
 ---
 

@@ -12,7 +12,7 @@ from std_msgs.msg import Header
 from geometry_msgs.msg import PoseStamped, TwistStamped, Twist, Quaternion
 from sensor_msgs.msg import BatteryState, NavSatFix, NavSatStatus
 
-from wardrone_interfaces.msg import Telemetry, VehicleState
+from wardrone_interfaces.msg import Telemetry, VehicleState, Waypoint
 from wardrone_interfaces.srv import Arm, SetFlightMode
 from wardrone_interfaces.action import Takeoff, Land
 
@@ -70,6 +70,7 @@ class MavsdkBridgeNode(Node):
         # --- Subscribers ---
         self.create_subscription(Twist, '/wardrone/cmd_velocity', self._on_cmd_velocity, 10)
         self.create_subscription(PoseStamped, '/wardrone/cmd_position', self._on_cmd_position, 10)
+        self.create_subscription(Waypoint, '/wardrone/cmd_goto_global', self._on_cmd_goto_global, 10)
         self.create_subscription(PoseStamped, '/wardrone/vio/pose', self._on_vio_pose, 10)
 
         # --- Services ---
@@ -89,6 +90,8 @@ class MavsdkBridgeNode(Node):
 
         # Offboard state
         self._offboard_active = False
+        # Home position for absolute altitude calculation
+        self._home_absolute_alt = None
 
         # --- Asyncio loop in background thread ---
         self._loop = asyncio.new_event_loop()
@@ -274,6 +277,38 @@ class MavsdkBridgeNode(Node):
                 await self._client.send_position_ned(north, east, down, yaw_ned)
             except Exception as e:
                 self.get_logger().warn(f'Position command failed: {e}')
+        asyncio.run_coroutine_threadsafe(_send(), self._loop)
+
+    def _on_cmd_goto_global(self, msg: Waypoint):
+        """Receive a GPS waypoint command: fly to lat/lon/alt using PX4 native goto."""
+        async def _send():
+            try:
+                # Set speed if provided
+                if msg.speed_m_s > 0:
+                    await self._client.set_maximum_speed(msg.speed_m_s)
+
+                # Compute absolute altitude from relative altitude + home
+                if self._home_absolute_alt is None:
+                    telem = self._client.telemetry
+                    self._home_absolute_alt = (
+                        telem.absolute_altitude_m - telem.relative_altitude_m
+                    )
+                absolute_alt = self._home_absolute_alt + msg.altitude_m
+
+                # Stop offboard if active (goto_location uses PX4 guided mode)
+                if self._offboard_active:
+                    try:
+                        await self._client.stop_offboard()
+                    except Exception:
+                        pass
+                    self._offboard_active = False
+
+                await self._client.goto_location(
+                    msg.latitude_deg, msg.longitude_deg,
+                    absolute_alt, float('nan')  # NaN yaw = maintain current heading
+                )
+            except Exception as e:
+                self.get_logger().warn(f'Goto global command failed: {e}')
         asyncio.run_coroutine_threadsafe(_send(), self._loop)
 
     def _on_vio_pose(self, msg: PoseStamped):

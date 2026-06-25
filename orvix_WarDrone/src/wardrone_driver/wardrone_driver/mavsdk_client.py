@@ -176,6 +176,17 @@ class MavsdkClient:
     async def set_flight_mode_hold(self) -> None:
         await self._drone.action.hold()
 
+    async def goto_location(self, latitude_deg: float, longitude_deg: float,
+                             absolute_altitude_m: float, yaw_deg: float) -> None:
+        """Fly to a GPS coordinate using PX4 native goto (not offboard)."""
+        await self._drone.action.goto_location(
+            latitude_deg, longitude_deg, absolute_altitude_m, yaw_deg
+        )
+
+    async def set_maximum_speed(self, speed_m_s: float) -> None:
+        """Set the maximum horizontal speed for goto commands."""
+        await self._drone.action.set_maximum_speed(speed_m_s)
+
     # --- Offboard ---
 
     async def start_offboard(self) -> None:

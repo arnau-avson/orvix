@@ -16,8 +16,8 @@ from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
 
 from std_msgs.msg import String
-from geometry_msgs.msg import PoseStamped, Twist
-from wardrone_interfaces.msg import VehicleState, TrackingTarget, MissionState as MissionStateMsg
+from geometry_msgs.msg import Twist
+from wardrone_interfaces.msg import VehicleState, TrackingTarget, Telemetry, MissionState as MissionStateMsg
 from wardrone_interfaces.srv import Arm, SetFlightMode
 from wardrone_interfaces.action import Takeoff, Land, ExecuteMission
 
@@ -84,6 +84,20 @@ class MissionControllerNode(Node):
         # Service clients
         self._arm_client = self.create_client(Arm, '/wardrone/arm', callback_group=cb_group)
         self._mode_client = self.create_client(SetFlightMode, '/wardrone/set_flight_mode', callback_group=cb_group)
+
+        # Telemetry for position tracking (RTL home detection)
+        self._home_lat = None
+        self._home_lon = None
+        self._current_lat = 0.0
+        self._current_lon = 0.0
+        self._current_alt = 0.0
+        self.create_subscription(Telemetry, '/wardrone/telemetry', self._on_telemetry, 10)
+
+        # Pending action flags (actions run in background, tick monitors results)
+        self._takeoff_sent = False
+        self._navigate_sent = False
+        self._rtl_sent = False
+        self._land_sent = False
 
         # Main tick timer (5 Hz)
         self.create_timer(0.2, self._tick)
@@ -187,6 +201,29 @@ class MissionControllerNode(Node):
         elif event_type in ('LOW_BATTERY', 'GPS_DEGRADED'):
             self._sm.handle_event(MissionEvent.SAFETY_WARNING, event_type)
 
+    def _on_telemetry(self, msg: Telemetry):
+        """Cache current position for RTL home-reached detection."""
+        self._current_lat = msg.latitude_deg
+        self._current_lon = msg.longitude_deg
+        self._current_alt = msg.relative_altitude_m
+
+        # Record home position on first telemetry (before takeoff)
+        if self._home_lat is None and msg.is_home_position_ok:
+            self._home_lat = msg.latitude_deg
+            self._home_lon = msg.longitude_deg
+            self.get_logger().info(
+                f'Home position set: ({self._home_lat:.6f}, {self._home_lon:.6f})'
+            )
+
+    @staticmethod
+    def _haversine(lat1, lon1, lat2, lon2):
+        R = 6371000.0
+        p1, p2 = math.radians(lat1), math.radians(lat2)
+        dp = math.radians(lat2 - lat1)
+        dl = math.radians(lon2 - lon1)
+        a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+        return R * 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+
     # --- Main tick ---
 
     def _tick(self):
@@ -201,15 +238,175 @@ class MissionControllerNode(Node):
         elif state == MissionState.PREFLIGHT:
             self._do_preflight()
 
+        elif state == MissionState.TAKEOFF:
+            self._do_takeoff()
+
+        elif state == MissionState.NAVIGATE:
+            self._do_navigate()
+
         elif state == MissionState.SEARCH:
             self._do_search()
+
+        elif state == MissionState.RTL:
+            self._do_rtl()
+
+        elif state == MissionState.LAND:
+            self._do_land()
 
     def _do_preflight(self):
         """Check if vehicle is ready for flight."""
         if self._vehicle_healthy:
             self._mission_start_time = time.time()
             self._sm.handle_event(MissionEvent.PREFLIGHT_OK, "All health checks passed")
-        # Could add timeout logic here
+
+    def _do_takeoff(self):
+        """Send takeoff action (once) and wait for completion."""
+        if self._takeoff_sent:
+            return
+
+        self._takeoff_sent = True
+        self.get_logger().info(f'Sending takeoff to {self._takeoff_alt}m')
+
+        if not self._takeoff_client.wait_for_server(timeout_sec=0.0):
+            self.get_logger().warn('Takeoff action server not available yet')
+            self._takeoff_sent = False
+            return
+
+        goal = Takeoff.Goal()
+        goal.target_altitude_m = self._takeoff_alt
+        future = self._takeoff_client.send_goal_async(goal)
+        future.add_done_callback(self._on_takeoff_goal_response)
+
+    def _on_takeoff_goal_response(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().error('Takeoff goal rejected')
+            self._takeoff_sent = False
+            return
+        result_future = goal_handle.get_result_async()
+        result_future.add_done_callback(self._on_takeoff_result)
+
+    def _on_takeoff_result(self, future):
+        result = future.result().result
+        if result.success:
+            self.get_logger().info(f'Takeoff complete at {result.final_altitude_m:.1f}m')
+            self._sm.handle_event(MissionEvent.TAKEOFF_COMPLETE, "Takeoff done")
+        else:
+            self.get_logger().error(f'Takeoff failed: {result.message}')
+            self._takeoff_sent = False
+
+    def _do_navigate(self):
+        """Send execute_mission action (once) and wait for completion."""
+        if self._navigate_sent:
+            return
+
+        self._navigate_sent = True
+        self.get_logger().info('Sending execute mission')
+
+        if not self._mission_client.wait_for_server(timeout_sec=0.0):
+            self.get_logger().warn('ExecuteMission action server not available yet')
+            self._navigate_sent = False
+            return
+
+        goal = ExecuteMission.Goal()
+        goal.mission_file_path = self._mission_file
+        future = self._mission_client.send_goal_async(
+            goal, feedback_callback=self._on_navigate_feedback
+        )
+        future.add_done_callback(self._on_navigate_goal_response)
+
+    def _on_navigate_feedback(self, feedback_msg):
+        fb = feedback_msg.feedback
+        self._current_wp_index = fb.current_waypoint_index
+        self._total_waypoints = fb.total_waypoints
+
+    def _on_navigate_goal_response(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().error('ExecuteMission goal rejected')
+            self._navigate_sent = False
+            return
+        result_future = goal_handle.get_result_async()
+        result_future.add_done_callback(self._on_navigate_result)
+
+    def _on_navigate_result(self, future):
+        result = future.result().result
+        if result.success:
+            self.get_logger().info(
+                f'Mission navigation complete: {result.waypoints_completed} waypoints, '
+                f'{result.total_distance_m:.0f}m, {result.total_time_s:.0f}s'
+            )
+            self._sm.handle_event(MissionEvent.MISSION_COMPLETE, "All waypoints reached")
+        else:
+            self.get_logger().warn(f'Mission navigation ended: {result.message}')
+            self._sm.handle_event(MissionEvent.MISSION_COMPLETE, result.message)
+
+    def _do_rtl(self):
+        """Command RTL flight mode and monitor distance to home."""
+        if not self._rtl_sent:
+            self._rtl_sent = True
+            self.get_logger().info('Commanding RTL')
+
+            if self._mode_client.wait_for_service(timeout_sec=0.0):
+                req = SetFlightMode.Request()
+                req.mode = 'RTL'
+                future = self._mode_client.call_async(req)
+                future.add_done_callback(self._on_rtl_mode_response)
+            else:
+                self.get_logger().warn('SetFlightMode service not available')
+                self._rtl_sent = False
+                return
+
+        # Monitor distance to home
+        if self._home_lat is not None:
+            dist = self._haversine(
+                self._current_lat, self._current_lon,
+                self._home_lat, self._home_lon
+            )
+            if dist < 5.0 and self._current_alt < 3.0:
+                self._sm.handle_event(MissionEvent.HOME_REACHED, f"Near home ({dist:.1f}m)")
+
+    def _on_rtl_mode_response(self, future):
+        result = future.result()
+        if not result.success:
+            self.get_logger().error(f'RTL mode failed: {result.message}')
+            self._rtl_sent = False
+
+    def _do_land(self):
+        """Send land action (once) and let vehicle state detect landing."""
+        if self._land_sent:
+            return
+
+        self._land_sent = True
+        self.get_logger().info('Sending land command')
+
+        if not self._land_client.wait_for_server(timeout_sec=0.0):
+            self.get_logger().warn('Land action server not available yet')
+            self._land_sent = False
+            return
+
+        goal = Land.Goal()
+        goal.land_in_place = True
+        future = self._land_client.send_goal_async(goal)
+        future.add_done_callback(self._on_land_goal_response)
+
+    def _on_land_goal_response(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().error('Land goal rejected')
+            self._land_sent = False
+            return
+        result_future = goal_handle.get_result_async()
+        result_future.add_done_callback(self._on_land_result)
+
+    def _on_land_result(self, future):
+        result = future.result().result
+        if result.success:
+            self.get_logger().info('Landing complete')
+            # LANDED event is also fired by _on_vehicle_state when is_in_air goes false
+        else:
+            self.get_logger().error(f'Land action failed: {result.message}')
+            self._land_sent = False
 
     def _do_search(self):
         """Check search timeout."""
