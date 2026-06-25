@@ -17,7 +17,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 
 from std_msgs.msg import String
 from sensor_msgs.msg import BatteryState
-from wardrone_interfaces.msg import Telemetry, VehicleState
+from wardrone_interfaces.msg import Telemetry, VehicleState, ObstacleArray
 from wardrone_interfaces.srv import SetFlightMode
 
 
@@ -34,6 +34,7 @@ class SafetyMonitorNode(Node):
         self.declare_parameter('gps_min_satellites', 6)
         self.declare_parameter('action_on_warning', 'RTL')
         self.declare_parameter('action_on_critical', 'LAND')
+        self.declare_parameter('obstacle_emergency_action', 'HOLD')
 
         self._battery_warning = self.get_parameter('battery_warning_pct').value
         self._battery_critical = self.get_parameter('battery_critical_pct').value
@@ -42,6 +43,7 @@ class SafetyMonitorNode(Node):
         self._gps_min_sats = self.get_parameter('gps_min_satellites').value
         self._action_warning = self.get_parameter('action_on_warning').value
         self._action_critical = self.get_parameter('action_on_critical').value
+        self._obstacle_action = self.get_parameter('obstacle_emergency_action').value
 
         # State
         self._last_telemetry_time = time.time()
@@ -54,6 +56,7 @@ class SafetyMonitorNode(Node):
         self._critical_sent = False
         self._link_lost_sent = False
         self._gps_warning_sent = False
+        self._obstacle_emergency_active = False
 
         cb_group = ReentrantCallbackGroup()
 
@@ -64,6 +67,7 @@ class SafetyMonitorNode(Node):
         self.create_subscription(Telemetry, '/wardrone/telemetry', self._on_telemetry, 10)
         self.create_subscription(VehicleState, '/wardrone/state', self._on_state, 10)
         self.create_subscription(BatteryState, '/wardrone/battery', self._on_battery, 10)
+        self.create_subscription(ObstacleArray, '/wardrone/obstacles', self._on_obstacles, 10)
 
         # Service client for flight mode changes
         self._set_mode_client = self.create_client(
@@ -92,6 +96,22 @@ class SafetyMonitorNode(Node):
         if msg.percentage > 0:
             self._battery_pct = msg.percentage * 100.0
 
+    def _on_obstacles(self, msg: ObstacleArray):
+        """Handle obstacle array from obstacle detector."""
+        if not self._is_armed or not self._is_in_air:
+            return
+
+        if msg.emergency_detected and not self._obstacle_emergency_active:
+            self._obstacle_emergency_active = True
+            self._publish_event('OBSTACLE_EMERGENCY')
+            self._request_flight_mode(self._obstacle_action)
+            self.get_logger().warn(
+                f'OBSTACLE EMERGENCY: {len(msg.obstacles)} obstacle(s), '
+                f'max_threat={msg.max_threat_level}'
+            )
+        elif not msg.emergency_detected:
+            self._obstacle_emergency_active = False
+
     def _publish_event(self, event_type: str):
         msg = String()
         msg.data = event_type
@@ -113,6 +133,7 @@ class SafetyMonitorNode(Node):
             self._critical_sent = False
             self._link_lost_sent = False
             self._gps_warning_sent = False
+            self._obstacle_emergency_active = False
             return
 
         # --- Battery checks ---

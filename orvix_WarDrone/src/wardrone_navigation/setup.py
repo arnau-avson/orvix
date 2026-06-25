@@ -21,6 +21,8 @@ setup(
         'console_scripts': [
             'waypoint_navigator_node = wardrone_navigation.waypoint_navigator_node:main',
             'safety_monitor_node = wardrone_navigation.safety_monitor_node:main',
+            'obstacle_detector_node = wardrone_navigation.obstacle_detector_node:main',
+            'obstacle_avoidance_node = wardrone_navigation.obstacle_avoidance_node:main',
         ],
     },
 )

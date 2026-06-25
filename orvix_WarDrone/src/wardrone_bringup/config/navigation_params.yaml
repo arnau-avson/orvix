@@ -14,3 +14,4 @@ safety_monitor:
     gps_min_satellites: 6
     action_on_warning: "RTL"
     action_on_critical: "LAND"
+    obstacle_emergency_action: "HOLD"

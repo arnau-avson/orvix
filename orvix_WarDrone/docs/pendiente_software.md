@@ -32,59 +32,67 @@
 
 ## 3. Deteccion de obstaculos
 
-- **Estado**: No implementado
-- **Problema**: La vision (YOLO) solo detecta personas, coches, motos, etc. como objetivos de seguimiento. No hay deteccion de obstaculos (arboles, edificios, paredes, cables, otros drones).
-- **Que falta**:
-  - Sensor de distancia que proporcione profundidad (LiDAR, ultrasonico, o camara de profundidad)
-  - Nodo ROS que publique distancias/pointcloud de obstaculos
-  - Procesamiento para clasificar zonas libres vs zonas bloqueadas
-- **Archivos afectados**: Nuevo nodo en `src/wardrone_navigation/` o `src/wardrone_vision/`
+- **Estado**: IMPLEMENTADO
+- **Solucion**: Nodo `obstacle_detector_node` que procesa imagenes de hasta 8 camaras (front, front_right, right, rear_right, rear, rear_left, left, front_left) usando:
+  - Sustraccion de fondo (MOG2) + analisis de contornos para deteccion rapida de movimiento
+  - Clasificacion YOLO bajo demanda para identificar el tipo de obstaculo (pajaro, drone, vehiculo, etc.)
+  - Estimacion de distancia monocular usando tamanos conocidos de objetos
+  - Estimacion de velocidad de aproximacion mediante tasa de expansion del bounding box
+  - Calculo de tiempo de colision (TTC) para detectar objetos que se acercan a alta velocidad
+- **Archivos**:
+  - `src/wardrone_navigation/wardrone_navigation/obstacle_detector_node.py`
+  - `src/wardrone_interfaces/msg/Obstacle.msg`
+  - `src/wardrone_interfaces/msg/ObstacleArray.msg`
+  - `src/wardrone_bringup/config/obstacle_params.yaml`
 - **Hardware necesario**:
-  - Opcion A: **LiDAR ligero** (TFmini Plus ~25 EUR, rango 12m, 1D frontal)
-  - Opcion B: **Sensor ultrasonico** (HC-SR04 ~3 EUR, rango 4m, solo frontal, poco fiable en exterior)
-  - Opcion C: **Camara de profundidad** (Intel RealSense D435 ~200 EUR, pointcloud 3D completa)
-  - Recomendacion: TFmini Plus por coste/peso/rango
+  - Opcion A (economica): 8x OV5647 (~5 EUR cada una, 62deg FOV) = ~40 EUR
+  - Opcion B (menos camaras): 4x IMX219 gran angular 160deg (~12 EUR cada una) = ~48 EUR
+  - Conexion via USB o multiplexor CSI (ej: Arducam Multi-Camera Adapter)
 
 ---
 
 ## 4. Evasion reactiva de obstaculos
 
-- **Estado**: No implementado
-- **Problema**: El waypoint navigator publica posiciones GPS sin comprobar si hay algo en el camino. Si hay un obstaculo, el drone se estrella.
-- **Que falta**:
-  - Logica de frenado de emergencia cuando se detecta obstaculo a distancia minima
-  - Algoritmo de desvio (potential fields, VFH, o desvio lateral simple)
-  - Logica de reanudacion de ruta original tras esquivar
-  - Priorizacion: safety monitor debe poder interrumpir waypoint navigator
-- **Archivos afectados**: `src/wardrone_navigation/wardrone_navigation/safety_monitor_node.py`, nuevo nodo de evasion
-- **Hardware necesario**: Depende del punto 3 (sensor de distancia)
+- **Estado**: IMPLEMENTADO
+- **Solucion**: Nodo `obstacle_avoidance_node` con maquina de estados (CLEAR -> MONITORING -> AVOIDING -> RESUMING) y maniobras de evasion inteligentes basadas en el tipo de obstaculo:
+  - **Edificio/arbol** -> deslizamiento lateral (son altos, subir no ayuda)
+  - **Pajaro/animal** -> subir verticalmente (vuelan a altitud similar, subir los evita)
+  - **Otro drone** -> deslizamiento lateral rapido (son agiles, salir de su trayectoria)
+  - **Vehiculo/persona** -> subir (estan en el suelo)
+  - **Desconocido** -> logica geometrica basada en sector y rutas disponibles
+  - **Emergencia** -> parada inmediata (hover) cuando esta demasiado cerca
+  - Reanudacion automatica de la ruta original tras esquivar
+  - Escape diagonal cuando tanto subir como lateral estan bloqueados
+- **Archivos**:
+  - `src/wardrone_navigation/wardrone_navigation/obstacle_avoidance_node.py`
+  - `src/wardrone_navigation/wardrone_navigation/safety_monitor_node.py` (integrado)
+  - `src/wardrone_bringup/config/obstacle_params.yaml`
+- **Hardware necesario**: Mismo que punto 3 (camaras)
 
 ---
 
 ## 5. Deteccion de obstaculos por detras y laterales
 
-- **Estado**: No implementado
-- **Problema**: Aunque se implemente la evasion frontal, el drone no detectaria objetos que se acercan por detras o por los lados (otros drones, pajaros, etc.).
-- **Que falta**:
-  - Sensores de distancia adicionales (trasero y/o laterales)
-  - Fusion de datos de multiples sensores en un mapa de ocupacion local
-  - Evasion omnidireccional (no solo frontal)
-- **Archivos afectados**: Nuevo nodo de fusion de sensores
-- **Hardware necesario**:
-  - Minimo: 1 sensor trasero adicional (TFmini Plus ~25 EUR)
-  - Ideal: 4 sensores (frontal, trasero, izquierda, derecha) o 1 LiDAR 360 (RPLiDAR A1 ~100 EUR)
+- **Estado**: IMPLEMENTADO (integrado en punto 3)
+- **Solucion**: El `obstacle_detector_node` soporta 8 sectores de camara simultaneos cubriendo 360 grados:
+  - FRONT, FRONT_RIGHT, RIGHT, REAR_RIGHT, REAR, REAR_LEFT, LEFT, FRONT_LEFT
+  - Cada sector tiene su propio background subtractor y tracker de contornos independiente
+  - Deteccion especial de objetos que se acercan a alta velocidad desde cualquier direccion
+  - El nodo de evasion toma decisiones omnidireccionales considerando todos los sectores bloqueados
+- **Archivos**: Mismos que punto 3
+- **Hardware necesario**: Mismas camaras (8 sectores = cobertura completa 360deg)
 
 ---
 
 ## Resumen
 
-| # | Funcionalidad | Solo software | Hardware extra |
-|---|--------------|---------------|----------------|
-| 1 | Aterrizaje automatico | Si | No |
-| 2 | Control de velocidad | Si | No |
-| 3 | Deteccion de obstaculos | No | Sensor de distancia (~25 EUR) |
-| 4 | Evasion reactiva | Parcial (necesita punto 3) | Sensor de distancia |
-| 5 | Deteccion omnidireccional | No | Sensores adicionales (~25-100 EUR) |
+| # | Funcionalidad | Estado | Hardware extra |
+|---|--------------|--------|----------------|
+| 1 | Aterrizaje automatico | Pendiente (solo software) | No |
+| 2 | Control de velocidad | Pendiente (solo software) | No |
+| 3 | Deteccion de obstaculos | **IMPLEMENTADO** | Camaras (~40-48 EUR) |
+| 4 | Evasion reactiva | **IMPLEMENTADO** | Mismas camaras |
+| 5 | Deteccion omnidireccional | **IMPLEMENTADO** | Mismas camaras (8 sectores) |
 
 ---
 
@@ -92,5 +100,23 @@
 
 1. **Aterrizaje automatico** -- solo software, se puede hacer ya
 2. **Control de velocidad** -- solo software, se puede hacer ya
-3. **Deteccion frontal + evasion** -- requiere comprar sensor (TFmini Plus)
-4. **Deteccion trasera/lateral** -- requiere sensores adicionales
+3. ~~**Deteccion frontal + evasion**~~ -- HECHO
+4. ~~**Deteccion trasera/lateral**~~ -- HECHO
+
+---
+
+## Hardware pendiente de montar (para puntos 3-5)
+
+Para activar la deteccion de obstaculos, montar las camaras y publicar en los topics:
+```
+/wardrone/obstacle_cam/front/image_raw
+/wardrone/obstacle_cam/front_right/image_raw
+/wardrone/obstacle_cam/right/image_raw
+/wardrone/obstacle_cam/rear_right/image_raw
+/wardrone/obstacle_cam/rear/image_raw
+/wardrone/obstacle_cam/rear_left/image_raw
+/wardrone/obstacle_cam/left/image_raw
+/wardrone/obstacle_cam/front_left/image_raw
+```
+
+Se pueden activar/desactivar sectores individuales en `obstacle_params.yaml` -> `enabled_sectors`.

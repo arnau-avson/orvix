@@ -1,0 +1,110 @@
+# ---------------------------------------------------------------------------
+# Obstacle detection & avoidance parameters
+# ---------------------------------------------------------------------------
+#
+# Hardware recommendation (economic):
+#   8x OV5647 (62deg FOV, ~5 EUR each) = ~40 EUR
+#   OR 4x IMX219 wide-angle 160deg (~12 EUR each) = ~48 EUR
+#   Connected via USB or CSI multiplexer (e.g. Arducam Multi-Camera Adapter)
+#
+# Camera topics expected:
+#   /wardrone/obstacle_cam/<sector>/image_raw
+#   sectors: front, front_right, right, rear_right, rear, rear_left, left, front_left
+# ---------------------------------------------------------------------------
+
+obstacle_detector:
+  ros__parameters:
+    # Which camera sectors are physically installed
+    enabled_sectors:
+      - front
+      - front_right
+      - right
+      - rear_right
+      - rear
+      - rear_left
+      - left
+      - front_left
+
+    # Processing rate (Hz) for aggregating obstacles into ObstacleArray
+    detection_rate_hz: 10.0
+
+    # --- Motion detection ---
+    min_contour_area_px: 500          # Minimum contour area to consider (pixels^2)
+    max_contours_per_sector: 10       # Max obstacles tracked per camera
+    motion_threshold: 25              # Binary threshold on foreground mask
+    bg_subtractor_history: 100        # Background model history (frames)
+    bg_subtractor_var_threshold: 50.0 # MOG2 variance threshold
+
+    # --- Tracking & velocity estimation ---
+    approach_velocity_window_s: 1.0   # Time window for velocity regression
+    contour_lost_timeout_s: 1.0       # Keep unmatched tracks for this long
+
+    # --- Threat thresholds (time-to-collision, seconds) ---
+    ttc_emergency_s: 2.0              # < 2s = emergency
+    ttc_critical_s: 4.0               # < 4s = critical
+    ttc_warning_s: 6.0                # < 6s = warning
+    ttc_caution_s: 10.0               # < 10s = caution
+
+    # --- Threat thresholds (distance, meters) ---
+    distance_emergency_m: 3.0
+    distance_critical_m: 6.0
+    distance_warning_m: 12.0
+    distance_caution_m: 25.0
+
+    # --- YOLO classification ---
+    enable_yolo_classification: true
+    yolo_model_path: "yolo11n.pt"
+    yolo_confidence_threshold: 0.35
+    yolo_device: "cpu"                # "cuda" for Jetson with GPU
+
+    # --- Camera intrinsics ---
+    camera_hfov_deg: 62.0             # Horizontal field of view (OV5647 default)
+    camera_resolution_w: 640
+    camera_resolution_h: 480
+
+    # --- Known object sizes for monocular distance estimation (meters) ---
+    known_sizes:
+      bird: 0.3
+      drone: 0.5
+      person: 0.5
+      car: 2.0
+      truck: 3.0
+      unknown: 0.5
+
+obstacle_avoidance:
+  ros__parameters:
+    # Control loop rate
+    control_rate_hz: 20.0
+
+    # --- Avoidance speeds ---
+    avoidance_speed_m_s: 2.0          # General avoidance movement speed
+    climb_speed_m_s: 2.5              # Vertical climb speed during avoidance
+    lateral_speed_m_s: 2.0            # Lateral slide speed
+
+    # --- Clearance distances ---
+    climb_clearance_m: 5.0            # How high to climb above obstacle
+    lateral_clearance_m: 4.0          # How far to slide laterally
+
+    # --- Timing ---
+    resume_delay_s: 2.0               # Pause after avoidance before resuming
+    max_avoidance_duration_s: 15.0    # Max time in avoidance before timeout
+
+    # --- Threat level triggers ---
+    min_threat_to_avoid: 3            # WARNING level triggers avoidance
+    emergency_stop_threat: 5          # EMERGENCY level triggers immediate stop
+    decelerate_threat: 2              # CAUTION level triggers deceleration
+
+    # --- Escape preferences ---
+    # 'up' = prefer climbing, 'left'/'right' = prefer lateral
+    # This is the fallback for unknown obstacle types.
+    # Classification-specific logic overrides this:
+    #   bird/animal  -> climb (they fly at similar altitude)
+    #   building/tree -> lateral slide (too tall to climb)
+    #   drone        -> lateral slide (fast, get out of path)
+    #   vehicle      -> climb (ground-bound)
+    #   person       -> climb (ground-bound)
+    preferred_escape_direction: "up"
+
+    # --- Altitude limits ---
+    max_altitude_m: 120.0
+    min_altitude_m: 3.0

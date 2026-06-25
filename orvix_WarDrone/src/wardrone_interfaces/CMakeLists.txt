@@ -22,6 +22,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/TrackingTarget.msg"
   "msg/MissionState.msg"
   "msg/VioStatus.msg"
+  "msg/Obstacle.msg"
+  "msg/ObstacleArray.msg"
   # Services
   "srv/Arm.srv"
   "srv/SetFlightMode.srv"

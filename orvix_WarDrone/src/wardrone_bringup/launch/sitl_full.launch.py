@@ -92,6 +92,27 @@ def generate_launch_description():
             output='screen',
         ),
 
+        # --- Obstacle Detection & Avoidance ---
+        Node(
+            package='wardrone_navigation',
+            executable='obstacle_detector_node',
+            name='obstacle_detector',
+            parameters=[
+                os.path.join(bringup_dir, 'config', 'obstacle_params.yaml'),
+            ],
+            output='screen',
+        ),
+
+        Node(
+            package='wardrone_navigation',
+            executable='obstacle_avoidance_node',
+            name='obstacle_avoidance',
+            parameters=[
+                os.path.join(bringup_dir, 'config', 'obstacle_params.yaml'),
+            ],
+            output='screen',
+        ),
+
         # --- VIO ---
         Node(
             package='wardrone_vio',
