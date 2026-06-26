@@ -21,6 +21,7 @@ import numpy as np
 SECTORS = [
     'front', 'front_right', 'right', 'rear_right',
     'rear', 'rear_left', 'left', 'front_left',
+    'top', 'bottom',
 ]
 
 SECTOR_BEARINGS = {
@@ -32,6 +33,8 @@ SECTOR_BEARINGS = {
     'rear_left': -135.0,
     'left': -90.0,
     'front_left': -45.0,
+    'top': 0.0,
+    'bottom': 0.0,
 }
 
 SECTOR_LABELS = {
@@ -43,6 +46,8 @@ SECTOR_LABELS = {
     'rear_left': 'REAR_LEFT',
     'left': 'LEFT',
     'front_left': 'FRONT_LEFT',
+    'top': 'TOP',
+    'bottom': 'BOTTOM',
 }
 
 THREAT_NONE = 0
@@ -60,8 +65,8 @@ THREAT_EMERGENCY = 5
 class TestSectorConstants:
     """Verify sector bearing angles and labels."""
 
-    def test_eight_sectors(self):
-        assert len(SECTORS) == 8
+    def test_ten_sectors(self):
+        assert len(SECTORS) == 10
 
     def test_front_bearing_is_zero(self):
         assert SECTOR_BEARINGS['front'] == 0.0
@@ -82,6 +87,16 @@ class TestSectorConstants:
     def test_all_sectors_have_bearings(self):
         for sector in SECTORS:
             assert sector in SECTOR_BEARINGS
+
+    def test_top_sector_exists(self):
+        assert 'top' in SECTORS
+        assert SECTOR_LABELS['top'] == 'TOP'
+        assert 'top' in SECTOR_BEARINGS
+
+    def test_bottom_sector_exists(self):
+        assert 'bottom' in SECTORS
+        assert SECTOR_LABELS['bottom'] == 'BOTTOM'
+        assert 'bottom' in SECTOR_BEARINGS
 
 
 class TestIoUComputation:

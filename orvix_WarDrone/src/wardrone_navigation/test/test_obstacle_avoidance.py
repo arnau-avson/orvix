@@ -160,6 +160,20 @@ class TestGeometricManeuverSelection:
                 return AvoidanceManeuver.LATERAL_SLIDE
             return AvoidanceManeuver.DECELERATE
 
+        if sector == 'TOP':
+            can_lateral = can_go_left or can_go_right
+            if can_lateral:
+                return AvoidanceManeuver.LATERAL_SLIDE
+            return AvoidanceManeuver.EMERGENCY_STOP
+
+        if sector == 'BOTTOM':
+            can_lateral = can_go_left or can_go_right
+            if can_climb:
+                return AvoidanceManeuver.CLIMB_OVER
+            if can_lateral:
+                return AvoidanceManeuver.LATERAL_SLIDE
+            return AvoidanceManeuver.EMERGENCY_STOP
+
         return AvoidanceManeuver.EMERGENCY_STOP
 
     # -- Frontal obstacles --
@@ -206,6 +220,36 @@ class TestGeometricManeuverSelection:
     def test_rear_fast_approach_cannot_climb_slides(self):
         m = self._select_geometric('REAR', approach_vel=10.0, can_climb=False)
         assert m == AvoidanceManeuver.LATERAL_SLIDE
+
+    # -- Top obstacles (from above) --
+
+    def test_top_obstacle_slides_laterally(self):
+        m = self._select_geometric('TOP')
+        assert m == AvoidanceManeuver.LATERAL_SLIDE
+
+    def test_top_obstacle_no_lateral_emergency(self):
+        m = self._select_geometric('TOP', can_go_left=False, can_go_right=False)
+        assert m == AvoidanceManeuver.EMERGENCY_STOP
+
+    def test_top_obstacle_does_not_climb(self):
+        """Even if can_climb is True, TOP obstacle should NOT climb (toward it)."""
+        m = self._select_geometric('TOP', can_climb=True)
+        assert m != AvoidanceManeuver.CLIMB_OVER
+
+    # -- Bottom obstacles (from below) --
+
+    def test_bottom_obstacle_climbs(self):
+        m = self._select_geometric('BOTTOM')
+        assert m == AvoidanceManeuver.CLIMB_OVER
+
+    def test_bottom_obstacle_no_climb_slides(self):
+        m = self._select_geometric('BOTTOM', can_climb=False)
+        assert m == AvoidanceManeuver.LATERAL_SLIDE
+
+    def test_bottom_obstacle_all_blocked_emergency(self):
+        m = self._select_geometric('BOTTOM', can_climb=False,
+                                    can_go_left=False, can_go_right=False)
+        assert m == AvoidanceManeuver.EMERGENCY_STOP
 
 
 class TestStateTransitions:
@@ -332,6 +376,12 @@ class TestClassificationAwareDecision:
         preferred = CLASSIFICATION_PREFERRED.get(classification)
 
         if preferred is not None:
+            # Override preference for vertical sectors
+            if sector == 'TOP' and preferred == AvoidanceManeuver.CLIMB_OVER:
+                preferred = AvoidanceManeuver.LATERAL_SLIDE
+            elif sector == 'BOTTOM' and preferred == AvoidanceManeuver.LATERAL_SLIDE:
+                preferred = AvoidanceManeuver.CLIMB_OVER
+
             if preferred == AvoidanceManeuver.CLIMB_OVER and can_climb:
                 return AvoidanceManeuver.CLIMB_OVER
             elif preferred == AvoidanceManeuver.LATERAL_SLIDE and can_lateral:
@@ -377,3 +427,25 @@ class TestClassificationAwareDecision:
         """Unknown classification should use geometric fallback."""
         result = self._decide('unknown', 'FRONT')
         assert result == AvoidanceManeuver.CLIMB_OVER  # Default geometric
+
+    # -- TOP/BOTTOM classification overrides --
+
+    def test_bird_from_top_slides(self):
+        """Bird normally prefers CLIMB, but from TOP should slide (don't climb toward it)."""
+        assert self._decide('bird', 'TOP') == AvoidanceManeuver.LATERAL_SLIDE
+
+    def test_vehicle_from_top_slides(self):
+        """Vehicle normally prefers CLIMB, but from TOP should slide."""
+        assert self._decide('vehicle', 'TOP') == AvoidanceManeuver.LATERAL_SLIDE
+
+    def test_bird_from_bottom_climbs(self):
+        """Bird from below: climb away."""
+        assert self._decide('bird', 'BOTTOM') == AvoidanceManeuver.CLIMB_OVER
+
+    def test_drone_from_bottom_climbs(self):
+        """Drone normally prefers LATERAL, but from BOTTOM should climb away."""
+        assert self._decide('drone', 'BOTTOM') == AvoidanceManeuver.CLIMB_OVER
+
+    def test_building_from_top_slides(self):
+        """Building from above: slide (already prefers lateral, no change)."""
+        assert self._decide('building', 'TOP') == AvoidanceManeuver.LATERAL_SLIDE

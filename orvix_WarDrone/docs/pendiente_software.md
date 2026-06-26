@@ -125,6 +125,9 @@ Para activar la deteccion de obstaculos, montar las camaras y publicar en los to
 /wardrone/obstacle_cam/rear_left/image_raw
 /wardrone/obstacle_cam/left/image_raw
 /wardrone/obstacle_cam/front_left/image_raw
+/wardrone/obstacle_cam/top/image_raw
+/wardrone/obstacle_cam/bottom/image_raw
 ```
 
 Se pueden activar/desactivar sectores individuales en `obstacle_params.yaml` -> `enabled_sectors`.
+Los sectores `top` y `bottom` vienen comentados por defecto; descomentar cuando se monten las camaras verticales.

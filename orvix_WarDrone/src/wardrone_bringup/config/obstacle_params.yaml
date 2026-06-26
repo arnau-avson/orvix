@@ -6,10 +6,11 @@
 #   8x OV5647 (62deg FOV, ~5 EUR each) = ~40 EUR
 #   OR 4x IMX219 wide-angle 160deg (~12 EUR each) = ~48 EUR
 #   Connected via USB or CSI multiplexer (e.g. Arducam Multi-Camera Adapter)
+#   For top/bottom coverage: 2x additional cameras (~10 EUR)
 #
 # Camera topics expected:
 #   /wardrone/obstacle_cam/<sector>/image_raw
-#   sectors: front, front_right, right, rear_right, rear, rear_left, left, front_left
+#   sectors: front, front_right, right, rear_right, rear, rear_left, left, front_left, top, bottom
 # ---------------------------------------------------------------------------
 
 obstacle_detector:
@@ -24,6 +25,8 @@ obstacle_detector:
       - rear_left
       - left
       - front_left
+      # - top      # Descomentar cuando se monte camara superior
+      # - bottom   # Descomentar cuando se monte camara inferior
 
     # Processing rate (Hz) for aggregating obstacles into ObstacleArray
     detection_rate_hz: 10.0

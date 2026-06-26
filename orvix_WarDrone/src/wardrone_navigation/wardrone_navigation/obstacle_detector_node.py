@@ -56,9 +56,11 @@ except ImportError:
 SECTORS = [
     'front', 'front_right', 'right', 'rear_right',
     'rear', 'rear_left', 'left', 'front_left',
+    'top', 'bottom',
 ]
 
 # Bearing angle for each sector center (degrees, 0 = front, CW positive)
+# For top/bottom sectors, bearing is 0.0 (not meaningful; avoidance uses sector label)
 SECTOR_BEARINGS = {
     'front': 0.0,
     'front_right': 45.0,
@@ -68,6 +70,8 @@ SECTOR_BEARINGS = {
     'rear_left': -135.0,
     'left': -90.0,
     'front_left': -45.0,
+    'top': 0.0,
+    'bottom': 0.0,
 }
 
 # Sector name -> Obstacle.msg sector string
@@ -80,6 +84,8 @@ SECTOR_LABELS = {
     'rear_left': 'REAR_LEFT',
     'left': 'LEFT',
     'front_left': 'FRONT_LEFT',
+    'top': 'TOP',
+    'bottom': 'BOTTOM',
 }
 
 # Threat level thresholds (distance in meters)

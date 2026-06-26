@@ -351,7 +351,9 @@ class ObstacleAvoidanceNode(Node):
 
         # ---- Determine available escape routes ----
         blocked = self._get_blocked_directions()
-        can_climb = self._current_alt < (self._max_alt - self._climb_clearance)
+        can_climb = (self._current_alt < (self._max_alt - self._climb_clearance)
+                     and 'TOP' not in blocked)
+        can_descend = 'BOTTOM' not in blocked
         can_go_left = 'LEFT' not in blocked and 'FRONT_LEFT' not in blocked
         can_go_right = 'RIGHT' not in blocked and 'FRONT_RIGHT' not in blocked
         can_lateral = can_go_left or can_go_right
@@ -360,6 +362,12 @@ class ObstacleAvoidanceNode(Node):
         preferred = self._CLASSIFICATION_PREFERRED.get(classification)
 
         if preferred is not None:
+            # Override preference for vertical sectors
+            if sector == 'TOP' and preferred == AvoidanceManeuver.CLIMB_OVER:
+                preferred = AvoidanceManeuver.LATERAL_SLIDE
+            elif sector == 'BOTTOM' and preferred == AvoidanceManeuver.LATERAL_SLIDE:
+                preferred = AvoidanceManeuver.CLIMB_OVER
+
             # Try the classification-based preference first
             if preferred == AvoidanceManeuver.CLIMB_OVER and can_climb:
                 maneuver = AvoidanceManeuver.CLIMB_OVER
@@ -430,6 +438,20 @@ class ObstacleAvoidanceNode(Node):
                     return AvoidanceManeuver.CLIMB_OVER
                 return AvoidanceManeuver.LATERAL_SLIDE
             return AvoidanceManeuver.DECELERATE
+
+        # Obstacle from above -- cannot climb, slide laterally
+        if sector == 'TOP':
+            if can_lateral:
+                return AvoidanceManeuver.LATERAL_SLIDE
+            return AvoidanceManeuver.EMERGENCY_STOP
+
+        # Obstacle from below -- climb away from it
+        if sector == 'BOTTOM':
+            if can_climb:
+                return AvoidanceManeuver.CLIMB_OVER
+            if can_lateral:
+                return AvoidanceManeuver.LATERAL_SLIDE
+            return AvoidanceManeuver.EMERGENCY_STOP
 
         return AvoidanceManeuver.EMERGENCY_STOP
 
