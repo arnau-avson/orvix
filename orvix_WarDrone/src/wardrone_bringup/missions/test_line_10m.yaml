@@ -1,0 +1,10 @@
+# Test mission: fly a straight line of 10m north at 10m altitude
+# Default PX4 SITL home: 47.397742, 8.545594
+mission:
+  id: "test_line_10m"
+  default_altitude_m: 10.0
+  default_speed_m_s: 3.0
+  waypoints:
+    - latitude_deg: 47.39783
+      longitude_deg: 8.54559
+      altitude_m: 10.0
