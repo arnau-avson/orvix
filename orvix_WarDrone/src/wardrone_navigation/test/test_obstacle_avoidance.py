@@ -168,8 +168,6 @@ class TestGeometricManeuverSelection:
 
         if sector == 'BOTTOM':
             can_lateral = can_go_left or can_go_right
-            if can_climb:
-                return AvoidanceManeuver.CLIMB_OVER
             if can_lateral:
                 return AvoidanceManeuver.LATERAL_SLIDE
             return AvoidanceManeuver.EMERGENCY_STOP
@@ -238,16 +236,17 @@ class TestGeometricManeuverSelection:
 
     # -- Bottom obstacles (from below) --
 
-    def test_bottom_obstacle_climbs(self):
+    def test_bottom_obstacle_slides_laterally(self):
         m = self._select_geometric('BOTTOM')
-        assert m == AvoidanceManeuver.CLIMB_OVER
+        assert m == AvoidanceManeuver.LATERAL_SLIDE
 
-    def test_bottom_obstacle_no_climb_slides(self):
-        m = self._select_geometric('BOTTOM', can_climb=False)
+    def test_bottom_obstacle_does_not_climb(self):
+        """Even if can_climb is True, BOTTOM obstacle should slide, not climb."""
+        m = self._select_geometric('BOTTOM', can_climb=True)
         assert m == AvoidanceManeuver.LATERAL_SLIDE
 
     def test_bottom_obstacle_all_blocked_emergency(self):
-        m = self._select_geometric('BOTTOM', can_climb=False,
+        m = self._select_geometric('BOTTOM',
                                     can_go_left=False, can_go_right=False)
         assert m == AvoidanceManeuver.EMERGENCY_STOP
 
@@ -376,11 +375,9 @@ class TestClassificationAwareDecision:
         preferred = CLASSIFICATION_PREFERRED.get(classification)
 
         if preferred is not None:
-            # Override preference for vertical sectors
-            if sector == 'TOP' and preferred == AvoidanceManeuver.CLIMB_OVER:
+            # Override preference for vertical sectors (never climb toward obstacle)
+            if sector in ('TOP', 'BOTTOM') and preferred == AvoidanceManeuver.CLIMB_OVER:
                 preferred = AvoidanceManeuver.LATERAL_SLIDE
-            elif sector == 'BOTTOM' and preferred == AvoidanceManeuver.LATERAL_SLIDE:
-                preferred = AvoidanceManeuver.CLIMB_OVER
 
             if preferred == AvoidanceManeuver.CLIMB_OVER and can_climb:
                 return AvoidanceManeuver.CLIMB_OVER
@@ -438,13 +435,13 @@ class TestClassificationAwareDecision:
         """Vehicle normally prefers CLIMB, but from TOP should slide."""
         assert self._decide('vehicle', 'TOP') == AvoidanceManeuver.LATERAL_SLIDE
 
-    def test_bird_from_bottom_climbs(self):
-        """Bird from below: climb away."""
-        assert self._decide('bird', 'BOTTOM') == AvoidanceManeuver.CLIMB_OVER
+    def test_bird_from_bottom_slides(self):
+        """Bird normally prefers CLIMB, but from BOTTOM should slide laterally."""
+        assert self._decide('bird', 'BOTTOM') == AvoidanceManeuver.LATERAL_SLIDE
 
-    def test_drone_from_bottom_climbs(self):
-        """Drone normally prefers LATERAL, but from BOTTOM should climb away."""
-        assert self._decide('drone', 'BOTTOM') == AvoidanceManeuver.CLIMB_OVER
+    def test_drone_from_bottom_slides(self):
+        """Drone from below: slide laterally."""
+        assert self._decide('drone', 'BOTTOM') == AvoidanceManeuver.LATERAL_SLIDE
 
     def test_building_from_top_slides(self):
         """Building from above: slide (already prefers lateral, no change)."""

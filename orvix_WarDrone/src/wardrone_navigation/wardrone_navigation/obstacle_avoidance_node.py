@@ -362,11 +362,9 @@ class ObstacleAvoidanceNode(Node):
         preferred = self._CLASSIFICATION_PREFERRED.get(classification)
 
         if preferred is not None:
-            # Override preference for vertical sectors
-            if sector == 'TOP' and preferred == AvoidanceManeuver.CLIMB_OVER:
+            # Override preference for vertical sectors (never climb toward obstacle)
+            if sector in ('TOP', 'BOTTOM') and preferred == AvoidanceManeuver.CLIMB_OVER:
                 preferred = AvoidanceManeuver.LATERAL_SLIDE
-            elif sector == 'BOTTOM' and preferred == AvoidanceManeuver.LATERAL_SLIDE:
-                preferred = AvoidanceManeuver.CLIMB_OVER
 
             # Try the classification-based preference first
             if preferred == AvoidanceManeuver.CLIMB_OVER and can_climb:
@@ -445,10 +443,8 @@ class ObstacleAvoidanceNode(Node):
                 return AvoidanceManeuver.LATERAL_SLIDE
             return AvoidanceManeuver.EMERGENCY_STOP
 
-        # Obstacle from below -- climb away from it
+        # Obstacle from below -- slide laterally
         if sector == 'BOTTOM':
-            if can_climb:
-                return AvoidanceManeuver.CLIMB_OVER
             if can_lateral:
                 return AvoidanceManeuver.LATERAL_SLIDE
             return AvoidanceManeuver.EMERGENCY_STOP
