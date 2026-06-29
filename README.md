@@ -53,7 +53,7 @@ Stack de autonomía ROS 2 para un cuadricóptero de bajo coste que opera sobre u
  ┌─────────────────────────────────────────────────────────┐
  │  wardrone_driver        MAVSDK Bridge                   │
  │    ├─ Publica telemetría, estado, batería, GPS          │
- │    ├─ Recibe cmd_velocity, cmd_position, VIO pose       │
+ │    ├─ Recibe cmd_velocity, cmd_goto_global, VIO pose    │
  │    └─ Action servers: Takeoff, Land                     │
  ├─────────────────────────────────────────────────────────┤
  │  wardrone_mission       Mission Controller (FSM)        │
@@ -63,7 +63,8 @@ Stack de autonomía ROS 2 para un cuadricóptero de bajo coste que opera sobre u
  │  wardrone_navigation    Waypoint Navigator + Safety     │
  │    ├─ Ejecuta misiones (waypoints YAML)                 │
  │    ├─ Safety monitor: batería, GPS, link loss           │
- │    └─ Obstacle detector / avoidance (en progreso)       │
+ │    ├─ Obstacle detector (MOG2+YOLO, 10 sectores)       │
+ │    └─ Obstacle avoidance (clasificación + geométrica)   │
  ├─────────────────────────────────────────────────────────┤
  │  wardrone_vision        Cámara + YOLO + Tracker         │
  │    ├─ Camera node (Gazebo / V4L2 / CSI)                 │
@@ -86,7 +87,7 @@ Stack de autonomía ROS 2 para un cuadricóptero de bajo coste que opera sobre u
 | `wardrone_interfaces` | 11 mensajes (`Telemetry`, `Detection`, `Obstacle`, `MissionState`, `Waypoint`…), 4 servicios (`Arm`, `SetFlightMode`, `LoadMission`, `SetTrackingTarget`), 4 acciones (`Takeoff`, `Land`, `GoToWaypoint`, `ExecuteMission`) |
 | `wardrone_driver` | Bridge MAVSDK ↔ ROS 2 — telemetría a 10 Hz, conversión ENU ↔ NED, action servers de despegue y aterrizaje |
 | `wardrone_mission` | Máquina de estados genérica con guardas, callbacks de entrada/salida, transiciones globales e historial; controlador de misión con 10 estados y eventos |
-| `wardrone_navigation` | Navegador de waypoints (Haversine, radio de aceptación configurable), monitor de seguridad (batería 30%/15%, pérdida de enlace, calidad GPS), detector de obstáculos (MOG2 + YOLO) |
+| `wardrone_navigation` | Navegador de waypoints (Haversine, radio de aceptación configurable), monitor de seguridad (batería 30%/15%, pérdida de enlace, calidad GPS), detector de obstáculos (MOG2 + YOLO, 10 sectores), evasión reactiva (clasificación + geométrica) |
 | `wardrone_vision` | Nodo de cámara (Gazebo/V4L2/CSI), detector YOLO11n, tracker SORT con lock-on pursuit (PID yaw + forward), wrapper YOLO reutilizable |
 | `wardrone_vio` | Bridge de odometría visual (VINS-Fusion o ground truth de Gazebo) a pose PX4, transformación cámara → body → map a 30 Hz |
 
@@ -103,9 +104,9 @@ Stack de autonomía ROS 2 para un cuadricóptero de bajo coste que opera sobre u
 | Tracking de objetos (SORT) | Completa |
 | Persecución lock-on (PID) | Completa |
 | Monitor de seguridad (batería, GPS, enlace) | Completa |
-| Detección de obstáculos (MOG2) | Parcial |
-| Evasión de obstáculos | Pendiente |
-| Control de velocidad offboard | Pendiente |
+| Detección de obstáculos (MOG2 + YOLO, 10 sectores) | Completa |
+| Evasión de obstáculos (clasificación + geométrica) | Completa |
+| Control de velocidad por waypoint | Completa |
 
 ### Simulación con Docker
 
@@ -321,8 +322,8 @@ pytest tests/ -v
 | Fase | WarDrone | WarTank |
 |---|---|---|
 | Diseño de arquitectura | Completa | Completa |
-| Implementación del software | ~85% | ~90% |
-| Simulación validada | En progreso (S5) | Completa |
+| Implementación del software | ~95% | ~90% |
+| Simulación validada | En progreso | Completa |
 | Hardware construido | Pendiente | Pendiente (firmware MCU) |
 | Integración en hardware real | Pendiente | Pendiente |
 | Evaluación y métricas | Pendiente | Pendiente |
