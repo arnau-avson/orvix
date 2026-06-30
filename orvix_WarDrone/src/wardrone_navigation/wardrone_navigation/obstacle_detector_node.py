@@ -30,6 +30,10 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from wardrone_navigation.kalman_tracker import (
+    KalmanBoxTracker, compute_iou, associate_detections, x_to_bbox,
+)
+
 import rclpy
 from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -98,6 +102,37 @@ THREAT_EMERGENCY = 5
 
 
 # ---------------------------------------------------------------------------
+# Pure functions (testable without rclpy)
+# ---------------------------------------------------------------------------
+
+def compute_distance_confidence(
+    frames_tracked: int,
+    classification_conf: float,
+    kalman_innovation_area: float,
+    kalman_predicted_area: float,
+    min_confident_frames: int = 10,
+) -> float:
+    """Compute confidence in the monocular distance estimate.
+
+    Combines three signals:
+    - Track maturity: min(1.0, frames_tracked / min_confident_frames)
+    - Classification confidence: direct from YOLO (0-1), floored at 0.1
+    - Area stability: 1 - |innovation| / predicted_area, clamped [0, 1]
+
+    Returns: float in [0.0, 1.0].
+    """
+    maturity = min(1.0, frames_tracked / min_confident_frames)
+
+    if kalman_predicted_area > 1.0:
+        stability = 1.0 - min(1.0, abs(kalman_innovation_area) / kalman_predicted_area)
+    else:
+        stability = 0.0
+
+    conf = maturity * max(classification_conf, 0.1) * stability
+    return max(0.0, min(1.0, conf))
+
+
+# ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
 
@@ -115,6 +150,7 @@ class TrackedContour:
     classification_conf: float = 0.0
     last_seen: float = 0.0
     frames_tracked: int = 0
+    kalman: Optional[KalmanBoxTracker] = None
 
 
 @dataclass
@@ -337,59 +373,76 @@ class ObstacleDetectorNode(Node):
         valid_contours.sort(key=lambda c: c[0], reverse=True)
         valid_contours = valid_contours[:self._max_contours]
 
-        # Match to existing tracked contours (IoU-based)
-        matched_ids = set()
+        # --- Kalman-based matching ---
+        # 1. Predict all existing trackers
+        existing_ids = list(state.tracked_contours.keys())
+        predicted_bboxes = []
+        for cid in existing_ids:
+            tc = state.tracked_contours[cid]
+            if tc.kalman is not None:
+                pred = tc.kalman.predict()
+                predicted_bboxes.append(pred)
+            else:
+                predicted_bboxes.append(tc.bbox)
+
+        # 2. Build detection list
+        det_bboxes = [(x1, y1, x2, y2)
+                      for (area, x1, y1, x2, y2) in valid_contours]
+
+        # 3. Associate detections with predicted tracker positions
+        matches, unmatched_dets, unmatched_trks = associate_detections(
+            det_bboxes, predicted_bboxes, iou_threshold=0.3)
+
         new_tracked = {}
 
-        for (area, x1, y1, x2, y2) in valid_contours:
+        # 4. Update matched tracks
+        for d_idx, t_idx in matches:
+            cid = existing_ids[t_idx]
+            tc = state.tracked_contours[cid]
+            area, x1, y1, x2, y2 = valid_contours[d_idx]
+            if tc.kalman is not None:
+                tc.kalman.update((x1, y1, x2, y2))
+            tc.bbox = (x1, y1, x2, y2)
+            tc.area = area
             cx = (x1 + x2) // 2
             cy = (y1 + y2) // 2
-            best_iou = 0.3  # Minimum IoU to match
-            best_id = None
+            tc.center = (cx, cy)
+            tc.history.append((now, area, (cx, cy)))
+            tc.last_seen = now
+            tc.frames_tracked += 1
+            new_tracked[cid] = tc
 
-            for cid, tc in state.tracked_contours.items():
-                if cid in matched_ids:
-                    continue
-                iou = self._compute_iou(
-                    (x1, y1, x2, y2),
-                    tc.bbox,
-                )
-                if iou > best_iou:
-                    best_iou = iou
-                    best_id = cid
+        # 5. Create new tracks for unmatched detections
+        for d_idx in unmatched_dets:
+            area, x1, y1, x2, y2 = valid_contours[d_idx]
+            cid = state.next_contour_id
+            state.next_contour_id += 1
+            cx = (x1 + x2) // 2
+            cy = (y1 + y2) // 2
+            tc = TrackedContour(
+                contour_id=cid,
+                sector=sector,
+                bbox=(x1, y1, x2, y2),
+                area=area,
+                center=(cx, cy),
+                last_seen=now,
+                frames_tracked=1,
+                kalman=KalmanBoxTracker((x1, y1, x2, y2)),
+            )
+            tc.history.append((now, area, (cx, cy)))
+            new_tracked[cid] = tc
 
-            if best_id is not None:
-                # Update existing track
-                tc = state.tracked_contours[best_id]
-                tc.bbox = (x1, y1, x2, y2)
-                tc.area = area
-                tc.center = (cx, cy)
-                tc.history.append((now, area, (cx, cy)))
-                tc.last_seen = now
-                tc.frames_tracked += 1
-                new_tracked[best_id] = tc
-                matched_ids.add(best_id)
-            else:
-                # New track
-                cid = state.next_contour_id
-                state.next_contour_id += 1
-                tc = TrackedContour(
-                    contour_id=cid,
-                    sector=sector,
-                    bbox=(x1, y1, x2, y2),
-                    area=area,
-                    center=(cx, cy),
-                    last_seen=now,
-                    frames_tracked=1,
-                )
-                tc.history.append((now, area, (cx, cy)))
+        # 6. Keep unmatched trackers that haven't timed out (occlusion handling)
+        for t_idx in unmatched_trks:
+            cid = existing_ids[t_idx]
+            tc = state.tracked_contours[cid]
+            if now - tc.last_seen < self._contour_lost_timeout:
+                # Update bbox from Kalman prediction
+                if tc.kalman is not None:
+                    pred_bb = x_to_bbox(tc.kalman.x)
+                    tc.bbox = (int(pred_bb[0]), int(pred_bb[1]),
+                               int(pred_bb[2]), int(pred_bb[3]))
                 new_tracked[cid] = tc
-
-        # Keep unmatched tracks that haven't timed out
-        for cid, tc in state.tracked_contours.items():
-            if cid not in matched_ids and cid not in new_tracked:
-                if now - tc.last_seen < self._contour_lost_timeout:
-                    new_tracked[cid] = tc
 
         state.tracked_contours = new_tracked
 
@@ -477,24 +530,68 @@ class ObstacleDetectorNode(Node):
         obs.classification = tc.classification
         obs.classification_confidence = tc.classification_conf
 
-        # Distance estimation (monocular, using known object size)
+        # Distance estimation -- prefer Kalman-smoothed area when available
         known_size = self._known_sizes.get(tc.classification, self._known_sizes['unknown'])
-        bbox_h_px = tc.bbox[3] - tc.bbox[1]
-        if bbox_h_px > 0:
-            obs.estimated_distance_m = (known_size * self._focal_px) / bbox_h_px
-        else:
-            obs.estimated_distance_m = 100.0  # Far away
 
-        # Approach velocity estimation from bbox area expansion rate
+        if tc.kalman is not None and tc.kalman.get_area() > 1.0:
+            smoothed_area = tc.kalman.get_area()
+            smoothed_r = tc.kalman.x[3, 0]  # aspect ratio w/h
+            if smoothed_r > 0.01:
+                smoothed_h = np.sqrt(smoothed_area / smoothed_r)
+            else:
+                smoothed_h = np.sqrt(smoothed_area)
+            if smoothed_h > 1.0:
+                obs.estimated_distance_m = (known_size * self._focal_px) / smoothed_h
+            else:
+                obs.estimated_distance_m = 100.0
+        else:
+            # Fallback to raw bbox (first frame, no Kalman yet)
+            bbox_h_px = tc.bbox[3] - tc.bbox[1]
+            if bbox_h_px > 0:
+                obs.estimated_distance_m = (known_size * self._focal_px) / bbox_h_px
+            else:
+                obs.estimated_distance_m = 100.0
+
+        # Conservative distance for unknown objects: assume small (closer)
+        if tc.classification == 'unknown' and tc.classification_conf < 0.1:
+            conservative_size = 0.3  # smallest known size (bird)
+            if tc.kalman is not None and tc.kalman.get_area() > 1.0:
+                smoothed_area = tc.kalman.get_area()
+                smoothed_r = tc.kalman.x[3, 0]
+                sh = np.sqrt(smoothed_area / max(smoothed_r, 0.01))
+                if sh > 1.0:
+                    conservative_dist = (conservative_size * self._focal_px) / sh
+                    obs.estimated_distance_m = min(obs.estimated_distance_m,
+                                                   conservative_dist)
+            else:
+                bbox_h_px = tc.bbox[3] - tc.bbox[1]
+                if bbox_h_px > 0:
+                    conservative_dist = (conservative_size * self._focal_px) / bbox_h_px
+                    obs.estimated_distance_m = min(obs.estimated_distance_m,
+                                                   conservative_dist)
+
+        # Approach velocity estimation
         obs.approach_velocity_m_s, obs.time_to_collision_s = (
             self._estimate_approach_velocity(tc, obs.estimated_distance_m)
         )
 
-        # Threat level
+        # Distance confidence
+        if tc.kalman is not None:
+            dist_confidence = compute_distance_confidence(
+                tc.frames_tracked,
+                tc.classification_conf,
+                tc.kalman.get_innovation_area(),
+                tc.kalman.get_predicted_area(),
+            )
+        else:
+            dist_confidence = 0.0
+
+        # Threat level (with confidence-based dampening)
         obs.threat_level = self._compute_threat_level(
             obs.estimated_distance_m,
             obs.time_to_collision_s,
             obs.approach_velocity_m_s,
+            dist_confidence,
         )
 
         return obs
@@ -502,28 +599,43 @@ class ObstacleDetectorNode(Node):
     def _estimate_approach_velocity(
         self, tc: TrackedContour, current_distance: float
     ) -> Tuple[float, float]:
-        """Estimate approach velocity and TTC from bbox area expansion.
+        """Estimate approach velocity and TTC.
 
-        Uses the rate of change of apparent size to infer radial velocity.
-        If the object's apparent area is growing, it is approaching.
+        Primary source: Kalman filter's area velocity state (ds).
+        Fallback: linear regression on sqrt(area) vs time (first frames).
 
         Returns:
             (approach_velocity_m_s, time_to_collision_s)
         """
+        # Primary: Kalman-filtered area velocity
+        if (tc.kalman is not None and tc.frames_tracked >= 3
+                and tc.kalman.get_area() > 1.0):
+            ds = tc.kalman.get_area_velocity()
+            current_area = tc.kalman.get_area()
+            current_sqrt_area = np.sqrt(current_area)
+            # ds = d(area)/dt;  d(sqrt_area)/dt = ds / (2 * sqrt_area)
+            sqrt_area_rate = ds / (2.0 * current_sqrt_area)
+            expansion_rate = sqrt_area_rate / current_sqrt_area
+
+            approach_vel = expansion_rate * current_distance
+            if approach_vel > 0.3:
+                ttc = current_distance / approach_vel
+            else:
+                approach_vel = max(approach_vel, 0.0)
+                ttc = -1.0
+            return approach_vel, ttc
+
+        # Fallback: linear regression on sqrt(area) history
         if len(tc.history) < 3:
             return 0.0, -1.0
 
         now = time.time()
-        # Use points within the velocity window
         recent = [(t, a, c) for (t, a, c) in tc.history
                   if now - t <= self._velocity_window]
 
         if len(recent) < 2:
             return 0.0, -1.0
 
-        # Linear regression on sqrt(area) vs time
-        # sqrt(area) is proportional to 1/distance, so its rate of change
-        # gives us approach rate information.
         t0 = recent[0][0]
         times = np.array([r[0] - t0 for r in recent])
         sqrt_areas = np.array([math.sqrt(r[1]) for r in recent])
@@ -531,7 +643,6 @@ class ObstacleDetectorNode(Node):
         if times[-1] - times[0] < 0.05:
             return 0.0, -1.0
 
-        # Fit line: sqrt_area = a * t + b
         n = len(times)
         sum_t = np.sum(times)
         sum_a = np.sum(sqrt_areas)
@@ -548,15 +659,10 @@ class ObstacleDetectorNode(Node):
         if current_sqrt_area < 1.0:
             return 0.0, -1.0
 
-        # Relative expansion rate: (d(sqrt_area)/dt) / sqrt_area
-        # This equals approach_speed / distance
         expansion_rate = slope / current_sqrt_area
-
-        # approach_velocity = expansion_rate * distance
         approach_vel = expansion_rate * current_distance
 
-        # TTC = distance / approach_velocity (only if approaching)
-        if approach_vel > 0.3:  # Minimum approach speed threshold (m/s)
+        if approach_vel > 0.3:
             ttc = current_distance / approach_vel
         else:
             approach_vel = max(approach_vel, 0.0)
@@ -565,9 +671,15 @@ class ObstacleDetectorNode(Node):
         return approach_vel, ttc
 
     def _compute_threat_level(
-        self, distance: float, ttc: float, approach_vel: float
+        self, distance: float, ttc: float, approach_vel: float,
+        confidence: float = 1.0,
     ) -> int:
-        """Compute threat level based on distance and time-to-collision."""
+        """Compute threat level based on distance, TTC, and detection confidence.
+
+        When confidence is low (< 0.3), CRITICAL is dampened to WARNING to
+        avoid false-positive emergency manoeuvres.  EMERGENCY is never
+        dampened because safety takes priority.
+        """
         threat = THREAT_NONE
 
         # Distance-based threat
@@ -582,7 +694,7 @@ class ObstacleDetectorNode(Node):
         else:
             threat = max(threat, THREAT_MONITOR)
 
-        # TTC-based threat escalation (fast approaching objects from far away)
+        # TTC-based threat escalation
         if ttc > 0:
             if ttc <= self._ttc_emergency:
                 threat = max(threat, THREAT_EMERGENCY)
@@ -598,6 +710,11 @@ class ObstacleDetectorNode(Node):
             threat = max(threat, THREAT_CRITICAL)
         elif approach_vel > 15.0:  # >54 km/h
             threat = max(threat, THREAT_WARNING)
+
+        # Confidence-based dampening: low-confidence CRITICAL → WARNING
+        # Never dampen EMERGENCY (safety critical)
+        if confidence < 0.3 and threat == THREAT_CRITICAL:
+            threat = THREAT_WARNING
 
         return threat
 
@@ -646,29 +763,6 @@ class ObstacleDetectorNode(Node):
             # No YOLO match -- could be a static obstacle (tree, building, wire)
             tc.classification = 'unknown'
             tc.classification_conf = 0.0
-
-    # ------------------------------------------------------------------
-    # Utilities
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _compute_iou(
-        box_a: Tuple[int, int, int, int],
-        box_b: Tuple[int, int, int, int],
-    ) -> float:
-        """Intersection-over-Union between two (x1, y1, x2, y2) boxes."""
-        x1 = max(box_a[0], box_b[0])
-        y1 = max(box_a[1], box_b[1])
-        x2 = min(box_a[2], box_b[2])
-        y2 = min(box_a[3], box_b[3])
-
-        inter = max(0, x2 - x1) * max(0, y2 - y1)
-        area_a = (box_a[2] - box_a[0]) * (box_a[3] - box_a[1])
-        area_b = (box_b[2] - box_b[0]) * (box_b[3] - box_b[1])
-        union = area_a + area_b - inter
-
-        return inter / union if union > 0 else 0.0
-
 
 def main(args=None):
     rclpy.init(args=args)

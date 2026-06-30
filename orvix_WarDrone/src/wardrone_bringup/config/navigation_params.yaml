@@ -34,7 +34,7 @@ flight_logger:
     log_rate_hz: 2.0
     enable_logging: true
 
-# Range sensor (TFmini-S or compatible)
+# Range sensor -- single sensor config (SITL / minimal hardware)
 range_sensor:
   ros__parameters:
     serial_port: "/dev/ttyAMA0"
@@ -50,7 +50,53 @@ range_sensor:
     distance_warning_m: 8.0
     distance_caution_m: 12.0
 
+# Multi-sensor range configuration (real hardware -- 3x TFmini-S)
+# Each sensor covers a different sector.  All publish to /wardrone/obstacles/range;
+# the obstacle_merger buffers per-sector so no data is lost.
+range_sensor_front:
+  ros__parameters:
+    serial_port: "/dev/ttyAMA0"
+    baud_rate: 115200
+    sensor_sector: "FRONT"
+    publish_rate_hz: 10.0
+    max_range_m: 12.0
+    min_range_m: 0.3
+    reading_timeout_s: 0.5
+    distance_emergency_m: 2.0
+    distance_critical_m: 4.0
+    distance_warning_m: 8.0
+    distance_caution_m: 12.0
+
+range_sensor_left:
+  ros__parameters:
+    serial_port: "/dev/ttyUSB0"
+    baud_rate: 115200
+    sensor_sector: "LEFT"
+    publish_rate_hz: 10.0
+    max_range_m: 12.0
+    min_range_m: 0.3
+    reading_timeout_s: 0.5
+    distance_emergency_m: 2.0
+    distance_critical_m: 4.0
+    distance_warning_m: 8.0
+    distance_caution_m: 12.0
+
+range_sensor_right:
+  ros__parameters:
+    serial_port: "/dev/ttyUSB1"
+    baud_rate: 115200
+    sensor_sector: "RIGHT"
+    publish_rate_hz: 10.0
+    max_range_m: 12.0
+    min_range_m: 0.3
+    reading_timeout_s: 0.5
+    distance_emergency_m: 2.0
+    distance_critical_m: 4.0
+    distance_warning_m: 8.0
+    distance_caution_m: 12.0
+
 # Obstacle merger (fuses vision + range into unified /wardrone/obstacles)
+# Per-sector buffering supports any number of range sensors.
 obstacle_merger:
   ros__parameters:
     merge_rate_hz: 10.0

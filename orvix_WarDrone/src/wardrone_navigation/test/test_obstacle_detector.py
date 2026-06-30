@@ -367,3 +367,166 @@ class TestBearingCalculation:
     def test_center_of_right_camera_is_90(self):
         bearing = self._compute_bearing('right', 320)
         assert abs(bearing - 90.0) < 0.1
+
+
+# ---------------------------------------------------------------------------
+# Distance confidence (replicated from obstacle_detector_node.py)
+# ---------------------------------------------------------------------------
+
+class TestDistanceConfidence:
+    """Test the compute_distance_confidence pure function."""
+
+    @staticmethod
+    def _compute_confidence(frames_tracked, class_conf,
+                             innovation_area, predicted_area,
+                             min_frames=10):
+        maturity = min(1.0, frames_tracked / min_frames)
+        if predicted_area > 1.0:
+            stability = 1.0 - min(1.0, abs(innovation_area) / predicted_area)
+        else:
+            stability = 0.0
+        conf = maturity * max(class_conf, 0.1) * stability
+        return max(0.0, min(1.0, conf))
+
+    def test_new_track_low_confidence(self):
+        """Track with only 1 frame should have low confidence."""
+        conf = self._compute_confidence(1, 0.9, 10, 1000)
+        assert conf < 0.15
+
+    def test_mature_track_high_confidence(self):
+        """Track with 20 frames and good classification → high confidence."""
+        conf = self._compute_confidence(20, 0.9, 10, 10000)
+        assert conf > 0.7
+
+    def test_unknown_class_lower_confidence(self):
+        """Unknown classification (conf=0.0) uses floor of 0.1."""
+        conf = self._compute_confidence(20, 0.0, 10, 10000)
+        assert conf < 0.15  # maturity=1.0 * 0.1 * stability ≈ 0.1
+
+    def test_high_innovation_low_stability(self):
+        """Large innovation relative to area → low stability."""
+        conf = self._compute_confidence(20, 0.9, 900, 1000)
+        assert conf < 0.15  # stability = 0.1
+
+    def test_zero_predicted_area(self):
+        """Zero predicted area → stability = 0 → confidence = 0."""
+        conf = self._compute_confidence(20, 0.9, 0, 0)
+        assert conf == 0.0
+
+    def test_confidence_bounds(self):
+        """Confidence is always in [0, 1]."""
+        conf = self._compute_confidence(100, 1.0, 0, 10000)
+        assert 0.0 <= conf <= 1.0
+        conf2 = self._compute_confidence(0, 0.0, 99999, 1)
+        assert 0.0 <= conf2 <= 1.0
+
+    def test_exact_min_frames(self):
+        """At exactly min_confident_frames, maturity should be 1.0."""
+        conf = self._compute_confidence(10, 1.0, 0, 10000, min_frames=10)
+        assert conf == pytest.approx(1.0)
+
+
+# ---------------------------------------------------------------------------
+# Smoothed distance estimation
+# ---------------------------------------------------------------------------
+
+class TestSmoothedDistanceEstimation:
+    """Test Kalman-smoothed area → distance formula."""
+
+    CAM_W = 640
+    CAM_HFOV = 62.0
+    FOCAL_PX = (CAM_W / 2.0) / math.tan(math.radians(CAM_HFOV / 2.0))
+
+    @classmethod
+    def _estimate_distance(cls, known_size, area, aspect_ratio):
+        """Distance from smoothed area and aspect ratio."""
+        if aspect_ratio > 0.01 and area > 1.0:
+            h = np.sqrt(area / aspect_ratio)
+            if h > 1.0:
+                return (known_size * cls.FOCAL_PX) / h
+        return 100.0
+
+    def test_valid_distance(self):
+        """Reasonable area should give reasonable distance."""
+        dist = self._estimate_distance(0.5, 2500, 1.0)
+        assert 1.0 < dist < 50.0
+
+    def test_larger_area_closer(self):
+        """Bigger area means closer object."""
+        dist_small = self._estimate_distance(0.5, 1000, 1.0)
+        dist_large = self._estimate_distance(0.5, 4000, 1.0)
+        assert dist_large < dist_small
+
+    def test_larger_known_size_farther(self):
+        """Bigger known size → same area means farther distance."""
+        dist_small_obj = self._estimate_distance(0.3, 2500, 1.0)
+        dist_large_obj = self._estimate_distance(2.0, 2500, 1.0)
+        assert dist_large_obj > dist_small_obj
+
+    def test_tiny_area_returns_far(self):
+        """Very tiny area (< 1) returns 100m (far away)."""
+        dist = self._estimate_distance(0.5, 0.5, 1.0)
+        assert dist == 100.0
+
+    def test_zero_aspect_ratio_returns_far(self):
+        """Zero aspect ratio (degenerate) returns 100m."""
+        dist = self._estimate_distance(0.5, 2500, 0.0)
+        assert dist == 100.0
+
+
+# ---------------------------------------------------------------------------
+# Conservative unknown distance
+# ---------------------------------------------------------------------------
+
+class TestConservativeUnknownDistance:
+    """Unknown objects should be estimated closer for safety."""
+
+    CAM_W = 640
+    CAM_HFOV = 62.0
+    FOCAL_PX = (CAM_W / 2.0) / math.tan(math.radians(CAM_HFOV / 2.0))
+
+    def test_unknown_uses_smaller_size(self):
+        """Unknown classification should produce closer distance than 'person'."""
+        bbox_h = 50.0
+        dist_person = (0.5 * self.FOCAL_PX) / bbox_h
+        dist_conservative = (0.3 * self.FOCAL_PX) / bbox_h  # bird size
+        assert dist_conservative < dist_person
+
+    def test_conservative_takes_minimum(self):
+        """min(default_dist, conservative_dist) should always be the conservative one."""
+        bbox_h = 80.0
+        dist_default = (0.5 * self.FOCAL_PX) / bbox_h
+        dist_conservative = (0.3 * self.FOCAL_PX) / bbox_h
+        result = min(dist_default, dist_conservative)
+        assert result == dist_conservative
+
+
+# ---------------------------------------------------------------------------
+# Confidence-based threat dampening
+# ---------------------------------------------------------------------------
+
+class TestThreatDampening:
+    """Test that low confidence dampens CRITICAL to WARNING."""
+
+    THREAT_WARNING = 3
+    THREAT_CRITICAL = 4
+    THREAT_EMERGENCY = 5
+
+    @staticmethod
+    def _dampen(threat, confidence):
+        """Replicate confidence dampening logic."""
+        if confidence < 0.3 and threat == 4:  # CRITICAL
+            return 3  # WARNING
+        return threat
+
+    def test_low_confidence_dampens_critical(self):
+        assert self._dampen(self.THREAT_CRITICAL, 0.1) == self.THREAT_WARNING
+
+    def test_high_confidence_keeps_critical(self):
+        assert self._dampen(self.THREAT_CRITICAL, 0.9) == self.THREAT_CRITICAL
+
+    def test_emergency_never_dampened(self):
+        assert self._dampen(self.THREAT_EMERGENCY, 0.1) == self.THREAT_EMERGENCY
+
+    def test_warning_not_affected(self):
+        assert self._dampen(self.THREAT_WARNING, 0.1) == self.THREAT_WARNING

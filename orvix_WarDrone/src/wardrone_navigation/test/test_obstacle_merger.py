@@ -173,3 +173,133 @@ class TestMergeObstacleArrays:
         result = merge_obstacle_arrays(v, r, 0.1, 0.1)
         assert abs(result[0]['approach_velocity_m_s'] - 2.5) < 1e-9
         assert abs(result[0]['time_to_collision_s'] - 2.0) < 1e-9
+
+
+class TestMultiSensorMerge:
+    """Test merger with multiple range sensors covering different sectors."""
+
+    def test_three_range_sensors(self):
+        """Three range sensors (FRONT, LEFT, RIGHT) merge independently."""
+        v = [_make_obstacle('FRONT', 10.0, 'bird', 2)]
+        r = [
+            _make_obstacle('FRONT', 4.0, 'unknown', 4),
+            _make_obstacle('LEFT', 6.0, 'unknown', 3),
+            _make_obstacle('RIGHT', 8.0, 'unknown', 2),
+        ]
+        result = merge_obstacle_arrays(v, r, 0.1, 0.1)
+        assert len(result) == 3
+        front = [o for o in result if o['sector'] == 'FRONT'][0]
+        left = [o for o in result if o['sector'] == 'LEFT'][0]
+        right = [o for o in result if o['sector'] == 'RIGHT'][0]
+        assert front['source'] == 'fused'
+        assert front['estimated_distance_m'] == 4.0
+        assert front['classification'] == 'bird'
+        assert left['source'] == 'range'
+        assert right['source'] == 'range'
+
+    def test_multiple_range_same_sector_last_wins(self):
+        """If two range obstacles share a sector, dict indexing keeps the last."""
+        r = [
+            _make_obstacle('FRONT', 5.0, 'unknown', 3),
+            _make_obstacle('FRONT', 3.0, 'unknown', 4),
+        ]
+        result = merge_obstacle_arrays([], r, 999.0, 0.1)
+        assert len(result) == 1
+        assert result[0]['estimated_distance_m'] == 3.0
+
+    def test_vision_two_sectors_range_two_sectors(self):
+        """Vision on FRONT+RIGHT, range on FRONT+LEFT."""
+        v = [
+            _make_obstacle('FRONT', 15.0, 'drone', 2),
+            _make_obstacle('RIGHT', 20.0, 'tree', 1),
+        ]
+        r = [
+            _make_obstacle('FRONT', 5.0, 'unknown', 4),
+            _make_obstacle('LEFT', 7.0, 'unknown', 3),
+        ]
+        result = merge_obstacle_arrays(v, r, 0.1, 0.1)
+        assert len(result) == 3
+        front = [o for o in result if o['sector'] == 'FRONT'][0]
+        right = [o for o in result if o['sector'] == 'RIGHT'][0]
+        left = [o for o in result if o['sector'] == 'LEFT'][0]
+        assert front['source'] == 'fused'
+        assert front['estimated_distance_m'] == 5.0
+        assert front['classification'] == 'drone'
+        assert right['source'] == 'vision'
+        assert left['source'] == 'range'
+
+    def test_all_sensors_all_sectors(self):
+        """Vision + 3 range sensors covering 4 different sectors total."""
+        v = [
+            _make_obstacle('FRONT', 12.0, 'building', 2),
+            _make_obstacle('REAR', 25.0, 'tree', 1),
+        ]
+        r = [
+            _make_obstacle('FRONT', 6.0, 'unknown', 3),
+            _make_obstacle('LEFT', 8.0, 'unknown', 2),
+            _make_obstacle('RIGHT', 10.0, 'unknown', 2),
+        ]
+        result = merge_obstacle_arrays(v, r, 0.1, 0.1)
+        assert len(result) == 4  # FRONT(fused), REAR(vision), LEFT(range), RIGHT(range)
+        sources = {o['sector']: o['source'] for o in result}
+        assert sources['FRONT'] == 'fused'
+        assert sources['REAR'] == 'vision'
+        assert sources['LEFT'] == 'range'
+        assert sources['RIGHT'] == 'range'
+
+
+class TestPerSectorBuffering:
+    """Test the per-sector range buffering logic used in _on_range."""
+
+    @staticmethod
+    def _buffer(range_by_sector, time_by_sector, obstacles, now_ns):
+        """Replicate the per-sector buffering from obstacle_merger_node."""
+        for obs in obstacles:
+            sector = obs['sector']
+            range_by_sector[sector] = obs
+            time_by_sector[sector] = now_ns
+
+    def test_single_sensor(self):
+        by_sector = {}
+        time_by_sector = {}
+        obs = [_make_obstacle('FRONT', 5.0)]
+        self._buffer(by_sector, time_by_sector, obs, 1000)
+        assert 'FRONT' in by_sector
+        assert by_sector['FRONT']['estimated_distance_m'] == 5.0
+
+    def test_multiple_sensors_buffered_separately(self):
+        by_sector = {}
+        time_by_sector = {}
+        # Sensor 1 publishes FRONT
+        self._buffer(by_sector, time_by_sector,
+                     [_make_obstacle('FRONT', 5.0)], 1000)
+        # Sensor 2 publishes LEFT
+        self._buffer(by_sector, time_by_sector,
+                     [_make_obstacle('LEFT', 7.0)], 1001)
+        assert len(by_sector) == 2
+        assert 'FRONT' in by_sector
+        assert 'LEFT' in by_sector
+        assert by_sector['FRONT']['estimated_distance_m'] == 5.0
+        assert by_sector['LEFT']['estimated_distance_m'] == 7.0
+
+    def test_same_sector_update_replaces(self):
+        by_sector = {}
+        time_by_sector = {}
+        self._buffer(by_sector, time_by_sector,
+                     [_make_obstacle('FRONT', 5.0)], 1000)
+        self._buffer(by_sector, time_by_sector,
+                     [_make_obstacle('FRONT', 3.0)], 2000)
+        assert by_sector['FRONT']['estimated_distance_m'] == 3.0
+        assert time_by_sector['FRONT'] == 2000
+
+    def test_three_sensors_all_buffered(self):
+        by_sector = {}
+        time_by_sector = {}
+        self._buffer(by_sector, time_by_sector,
+                     [_make_obstacle('FRONT', 4.0)], 100)
+        self._buffer(by_sector, time_by_sector,
+                     [_make_obstacle('LEFT', 6.0)], 101)
+        self._buffer(by_sector, time_by_sector,
+                     [_make_obstacle('RIGHT', 8.0)], 102)
+        assert len(by_sector) == 3
+        assert set(by_sector.keys()) == {'FRONT', 'LEFT', 'RIGHT'}

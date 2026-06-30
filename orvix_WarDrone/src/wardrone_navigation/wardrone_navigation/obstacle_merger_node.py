@@ -127,11 +127,13 @@ class ObstacleMergerNode(Node):
         rate = self.get_parameter('merge_rate_hz').value
         self._max_age = self.get_parameter('source_max_age_s').value
 
-        # Latest messages from each source
+        # Latest vision message
         self._vision_msg = None
-        self._range_msg = None
         self._vision_time_ns = 0
-        self._range_time_ns = 0
+
+        # Per-sector range buffer (supports multiple range sensors)
+        self._range_by_sector = {}        # sector_str -> Obstacle msg
+        self._range_time_by_sector = {}   # sector_str -> nanoseconds
 
         # Publisher -- the unified topic consumed by avoidance
         self._pub = self.create_publisher(
@@ -156,17 +158,37 @@ class ObstacleMergerNode(Node):
         self._vision_time_ns = self.get_clock().now().nanoseconds
 
     def _on_range(self, msg: ObstacleArray):
-        self._range_msg = msg
-        self._range_time_ns = self.get_clock().now().nanoseconds
+        """Buffer each range obstacle by sector (supports multiple sensors)."""
+        now_ns = self.get_clock().now().nanoseconds
+        for obs in msg.obstacles:
+            self._range_by_sector[obs.sector] = obs
+            self._range_time_by_sector[obs.sector] = now_ns
 
     def _merge_tick(self):
         now_ns = self.get_clock().now().nanoseconds
 
+        # Vision: single source
         vision_age = (now_ns - self._vision_time_ns) / 1e9 if self._vision_time_ns > 0 else 999.0
-        range_age = (now_ns - self._range_time_ns) / 1e9 if self._range_time_ns > 0 else 999.0
-
         v_list = list(self._vision_msg.obstacles) if self._vision_msg else []
-        r_list = list(self._range_msg.obstacles) if self._range_msg else []
+
+        # Range: collect all non-stale per-sector readings
+        r_list = []
+        stale_sectors = []
+        for sector, obs in self._range_by_sector.items():
+            t_ns = self._range_time_by_sector.get(sector, 0)
+            age = (now_ns - t_ns) / 1e9 if t_ns > 0 else 999.0
+            if age <= self._max_age:
+                r_list.append(obs)
+            else:
+                stale_sectors.append(sector)
+
+        # Clean up stale sectors
+        for s in stale_sectors:
+            del self._range_by_sector[s]
+            del self._range_time_by_sector[s]
+
+        # range_age=0.0 since we already filtered stale readings above
+        range_age = 0.0 if r_list else 999.0
 
         merged = merge_obstacle_arrays(
             v_list, r_list, vision_age, range_age, self._max_age)

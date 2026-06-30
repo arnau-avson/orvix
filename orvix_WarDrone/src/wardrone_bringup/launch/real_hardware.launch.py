@@ -131,13 +131,34 @@ def generate_launch_description():
             output='screen',
         ),
 
-        # --- Range Sensor (TFmini-S) ---
+        # --- Range Sensors (TFmini-S ×3: front, left, right) ---
         Node(
             package='wardrone_navigation',
             executable='range_sensor_node',
-            name='range_sensor',
+            name='range_sensor_front',
             parameters=[
                 os.path.join(bringup_dir, 'config', 'navigation_params.yaml'),
+                {'serial_port': '/dev/ttyAMA0', 'sensor_sector': 'FRONT'},
+            ],
+            output='screen',
+        ),
+        Node(
+            package='wardrone_navigation',
+            executable='range_sensor_node',
+            name='range_sensor_left',
+            parameters=[
+                os.path.join(bringup_dir, 'config', 'navigation_params.yaml'),
+                {'serial_port': '/dev/ttyUSB0', 'sensor_sector': 'LEFT'},
+            ],
+            output='screen',
+        ),
+        Node(
+            package='wardrone_navigation',
+            executable='range_sensor_node',
+            name='range_sensor_right',
+            parameters=[
+                os.path.join(bringup_dir, 'config', 'navigation_params.yaml'),
+                {'serial_port': '/dev/ttyUSB1', 'sensor_sector': 'RIGHT'},
             ],
             output='screen',
         ),
