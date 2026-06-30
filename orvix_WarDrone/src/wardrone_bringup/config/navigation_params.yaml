@@ -33,3 +33,17 @@ flight_logger:
     log_dir: "~/wardrone_logs/"
     log_rate_hz: 2.0
     enable_logging: true
+
+# Range sensor (TFmini-S or compatible)
+range_sensor:
+  ros__parameters:
+    serial_port: "/dev/ttyAMA0"
+    baud_rate: 115200
+    sensor_sector: "FRONT"
+    publish_rate_hz: 10.0
+    max_range_m: 12.0
+    min_range_m: 0.3
+    distance_emergency_m: 3.0
+    distance_critical_m: 6.0
+    distance_warning_m: 12.0
+    distance_caution_m: 25.0

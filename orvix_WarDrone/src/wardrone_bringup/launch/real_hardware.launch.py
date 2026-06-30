@@ -131,6 +131,17 @@ def generate_launch_description():
             output='screen',
         ),
 
+        # --- Range Sensor (TFmini-S) ---
+        Node(
+            package='wardrone_navigation',
+            executable='range_sensor_node',
+            name='range_sensor',
+            parameters=[
+                os.path.join(bringup_dir, 'config', 'navigation_params.yaml'),
+            ],
+            output='screen',
+        ),
+
         # --- Obstacle Detection & Avoidance ---
         Node(
             package='wardrone_navigation',

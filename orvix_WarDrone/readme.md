@@ -143,9 +143,10 @@ Comunicación entre ambas mediante el protocolo **MAVLink**.
 | Controladora de vuelo (Pixhawk-class) | 40–120 | Necesaria para autonomía |
 | Companion computer | 60–250 | RPi 5 (barato) vs Jetson Orin Nano (ML) |
 | Cámara | 15–40 | |
+| Sensor de rango (TFmini-S o similar) | 3–8 | Telémetro láser UART, complementa visión monocular |
 | Radio + telemetría | 30–60 | |
 | Batería, hélices, varios | 40–60 | |
-| **Total estimado** | **~250–500** | Según companion computer |
+| **Total estimado** | **~255–510** | Según companion computer |
 
 ---
 

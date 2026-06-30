@@ -22,10 +22,18 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 
 
 def compute_bearing(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Bearing from point 1 to point 2 in degrees (0=North, CW)."""
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-    return math.degrees(math.atan2(dlon * math.cos(math.radians(lat1)), dlat))
+    """Bearing (forward azimuth) from point 1 to point 2 in degrees (0=North, CW).
+
+    Uses the full spherical formula, accurate at any distance and latitude:
+        θ = atan2(sin(Δλ)·cos(φ2), cos(φ1)·sin(φ2) − sin(φ1)·cos(φ2)·cos(Δλ))
+    """
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dlambda = math.radians(lon2 - lon1)
+
+    x = math.sin(dlambda) * math.cos(phi2)
+    y = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlambda)
+    return math.degrees(math.atan2(x, y))
 
 
 def normalize_angle(deg: float) -> float:
