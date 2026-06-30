@@ -1,9 +1,9 @@
 """Range sensor node -- serial laser/ultrasonic rangefinder driver.
 
 Reads distance from a serial range sensor (TFmini-S protocol by default)
-and publishes obstacles to /wardrone/obstacles.  This provides accurate
-distance measurements that complement the monocular vision-based detector,
-which can only estimate distance from known object sizes.
+and publishes obstacles to /wardrone/obstacles/range.  A separate
+obstacle_merger_node combines this with /wardrone/obstacles/vision into
+the unified /wardrone/obstacles topic consumed by the avoidance node.
 
 Supported protocols:
     - TFmini-S (default): 9-byte UART frames at 115200 baud
@@ -17,10 +17,6 @@ Hardware connection:
     Sensor TX -> Raspberry Pi UART RX (GPIO 15 / /dev/ttyAMA0)
     Sensor VCC -> 5V, GND -> GND
 """
-
-import math
-import struct
-import time
 
 import rclpy
 from rclpy.node import Node
@@ -99,10 +95,10 @@ def find_tfmini_frame(buffer: bytes) -> tuple:
 
 def distance_to_threat_level(
     distance_m: float,
-    dist_emergency: float = 3.0,
-    dist_critical: float = 6.0,
-    dist_warning: float = 12.0,
-    dist_caution: float = 25.0,
+    dist_emergency: float = 2.0,
+    dist_critical: float = 4.0,
+    dist_warning: float = 8.0,
+    dist_caution: float = 12.0,
 ) -> int:
     """Convert a distance reading to a threat level (0-5)."""
     if distance_m <= dist_emergency:
@@ -148,10 +144,11 @@ class RangeSensorNode(Node):
         self.declare_parameter('publish_rate_hz', 10.0)
         self.declare_parameter('max_range_m', 12.0)
         self.declare_parameter('min_range_m', 0.3)
-        self.declare_parameter('distance_emergency_m', 3.0)
-        self.declare_parameter('distance_critical_m', 6.0)
-        self.declare_parameter('distance_warning_m', 12.0)
-        self.declare_parameter('distance_caution_m', 25.0)
+        self.declare_parameter('reading_timeout_s', 0.5)
+        self.declare_parameter('distance_emergency_m', 2.0)
+        self.declare_parameter('distance_critical_m', 4.0)
+        self.declare_parameter('distance_warning_m', 8.0)
+        self.declare_parameter('distance_caution_m', 12.0)
 
         self._port = self.get_parameter('serial_port').value
         self._baud = self.get_parameter('baud_rate').value
@@ -159,6 +156,7 @@ class RangeSensorNode(Node):
         self._rate = self.get_parameter('publish_rate_hz').value
         self._max_range = self.get_parameter('max_range_m').value
         self._min_range = self.get_parameter('min_range_m').value
+        self._reading_timeout = self.get_parameter('reading_timeout_s').value
         self._dist_emergency = self.get_parameter('distance_emergency_m').value
         self._dist_critical = self.get_parameter('distance_critical_m').value
         self._dist_warning = self.get_parameter('distance_warning_m').value
@@ -169,13 +167,14 @@ class RangeSensorNode(Node):
         self._buffer = b''
         self._last_distance = -1.0
         self._last_strength = 0
+        self._last_reading_time_ns = 0  # ROS clock nanoseconds
         self._is_in_air = False
         self._prev_distance = -1.0
-        self._prev_time = 0.0
+        self._prev_time_ns = 0
 
-        # Publishers
+        # Publishers -- publishes to /range subtopic, merged by obstacle_merger_node
         self._pub_obstacles = self.create_publisher(
-            ObstacleArray, '/wardrone/obstacles', 10)
+            ObstacleArray, '/wardrone/obstacles/range', 10)
         self._pub_range = self.create_publisher(
             Float32, '/wardrone/range_sensor/distance', 10)
         self._pub_safety = self.create_publisher(
@@ -220,9 +219,12 @@ class RangeSensorNode(Node):
         """Accept simulated distance readings (for SITL)."""
         self._last_distance = msg.data
         self._last_strength = 999  # Simulated = always strong
+        self._last_reading_time_ns = self.get_clock().now().nanoseconds
 
     def _read_and_publish(self):
         """Read serial data, parse frames, publish obstacle."""
+        now_ns = self.get_clock().now().nanoseconds
+
         # Read from serial if available
         if self._serial is not None:
             try:
@@ -240,8 +242,17 @@ class RangeSensorNode(Node):
                         if parsed['valid']:
                             self._last_distance = parsed['distance_m']
                             self._last_strength = parsed['strength']
+                            self._last_reading_time_ns = now_ns
             except Exception as e:
                 self.get_logger().error(f'Serial read error: {e}')
+
+        # Check reading staleness -- invalidate if no fresh data
+        if self._last_reading_time_ns > 0:
+            age_s = (now_ns - self._last_reading_time_ns) / 1e9
+            if age_s > self._reading_timeout:
+                self._last_distance = -1.0
+                self._prev_distance = -1.0
+                return
 
         # Nothing to publish
         if self._last_distance < 0:
@@ -261,12 +272,11 @@ class RangeSensorNode(Node):
         if distance < self._min_range or distance > self._max_range:
             return
 
-        # Estimate approach velocity from consecutive readings
-        now = time.time()
+        # Estimate approach velocity from consecutive readings (ROS clock)
         approach_vel = 0.0
         ttc = -1.0
-        if self._prev_distance > 0 and self._prev_time > 0:
-            dt = now - self._prev_time
+        if self._prev_distance > 0 and self._prev_time_ns > 0:
+            dt = (now_ns - self._prev_time_ns) / 1e9
             if dt > 0.01:
                 # Positive = approaching (distance decreasing)
                 approach_vel = (self._prev_distance - distance) / dt
@@ -275,7 +285,7 @@ class RangeSensorNode(Node):
                 else:
                     approach_vel = max(approach_vel, 0.0)
         self._prev_distance = distance
-        self._prev_time = now
+        self._prev_time_ns = now_ns
 
         # Build obstacle message
         bearing = SECTOR_BEARINGS.get(self._sector, 0.0)

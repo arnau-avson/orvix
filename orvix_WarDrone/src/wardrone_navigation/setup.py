@@ -26,6 +26,7 @@ setup(
             'wind_estimator_node = wardrone_navigation.wind_estimator_node:main',
             'flight_logger_node = wardrone_navigation.flight_logger_node:main',
             'range_sensor_node = wardrone_navigation.range_sensor_node:main',
+            'obstacle_merger_node = wardrone_navigation.obstacle_merger_node:main',
         ],
     },
 )

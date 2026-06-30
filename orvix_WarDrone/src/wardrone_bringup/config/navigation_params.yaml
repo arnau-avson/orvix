@@ -43,7 +43,15 @@ range_sensor:
     publish_rate_hz: 10.0
     max_range_m: 12.0
     min_range_m: 0.3
-    distance_emergency_m: 3.0
-    distance_critical_m: 6.0
-    distance_warning_m: 12.0
-    distance_caution_m: 25.0
+    reading_timeout_s: 0.5
+    # Thresholds adjusted to TFmini range (0.3-12m)
+    distance_emergency_m: 2.0
+    distance_critical_m: 4.0
+    distance_warning_m: 8.0
+    distance_caution_m: 12.0
+
+# Obstacle merger (fuses vision + range into unified /wardrone/obstacles)
+obstacle_merger:
+  ros__parameters:
+    merge_rate_hz: 10.0
+    source_max_age_s: 1.0

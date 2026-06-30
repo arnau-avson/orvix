@@ -103,6 +103,17 @@ def generate_launch_description():
             output='screen',
         ),
 
+        # --- Obstacle Merger (fuses vision + range) ---
+        Node(
+            package='wardrone_navigation',
+            executable='obstacle_merger_node',
+            name='obstacle_merger',
+            parameters=[
+                os.path.join(bringup_dir, 'config', 'navigation_params.yaml'),
+            ],
+            output='screen',
+        ),
+
         Node(
             package='wardrone_navigation',
             executable='obstacle_avoidance_node',

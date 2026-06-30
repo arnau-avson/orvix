@@ -215,7 +215,7 @@ class ObstacleDetectorNode(Node):
         cb_group = ReentrantCallbackGroup()
 
         # --- Publishers ---
-        self._pub_obstacles = self.create_publisher(ObstacleArray, '/wardrone/obstacles', 10)
+        self._pub_obstacles = self.create_publisher(ObstacleArray, '/wardrone/obstacles/vision', 10)
         self._pub_event = self.create_publisher(String, '/wardrone/safety/event', 10)
         self._pub_debug = self.create_publisher(Image, '/wardrone/debug/obstacle_image', 10)
 

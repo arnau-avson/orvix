@@ -51,8 +51,8 @@ def find_tfmini_frame(buffer: bytes) -> tuple:
     return None, buffer
 
 
-def distance_to_threat_level(distance_m, dist_emergency=3.0, dist_critical=6.0,
-                              dist_warning=12.0, dist_caution=25.0):
+def distance_to_threat_level(distance_m, dist_emergency=2.0, dist_critical=4.0,
+                              dist_warning=8.0, dist_caution=12.0):
     if distance_m <= dist_emergency:
         return 5
     elif distance_m <= dist_critical:
@@ -180,23 +180,23 @@ class TestFindTfminiFrame:
 
 class TestDistanceToThreatLevel:
     def test_emergency(self):
-        assert distance_to_threat_level(1.0) == 5
-        assert distance_to_threat_level(3.0) == 5
+        assert distance_to_threat_level(0.5) == 5
+        assert distance_to_threat_level(2.0) == 5
 
     def test_critical(self):
+        assert distance_to_threat_level(3.0) == 4
         assert distance_to_threat_level(4.0) == 4
-        assert distance_to_threat_level(6.0) == 4
 
     def test_warning(self):
+        assert distance_to_threat_level(5.0) == 3
         assert distance_to_threat_level(8.0) == 3
-        assert distance_to_threat_level(12.0) == 3
 
     def test_caution(self):
-        assert distance_to_threat_level(15.0) == 2
-        assert distance_to_threat_level(25.0) == 2
+        assert distance_to_threat_level(9.0) == 2
+        assert distance_to_threat_level(12.0) == 2
 
     def test_monitor(self):
-        assert distance_to_threat_level(30.0) == 1
+        assert distance_to_threat_level(13.0) == 1
         assert distance_to_threat_level(100.0) == 1
 
     def test_custom_thresholds(self):
