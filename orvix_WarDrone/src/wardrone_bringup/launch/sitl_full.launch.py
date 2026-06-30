@@ -136,6 +136,28 @@ def generate_launch_description():
             condition=IfCondition(LaunchConfiguration('enable_vio_eval')),
         ),
 
+        # --- Wind Estimator (F9) ---
+        Node(
+            package='wardrone_navigation',
+            executable='wind_estimator_node',
+            name='wind_estimator',
+            parameters=[
+                os.path.join(bringup_dir, 'config', 'navigation_params.yaml'),
+            ],
+            output='screen',
+        ),
+
+        # --- Flight Logger (F1) ---
+        Node(
+            package='wardrone_navigation',
+            executable='flight_logger_node',
+            name='flight_logger',
+            parameters=[
+                os.path.join(bringup_dir, 'config', 'navigation_params.yaml'),
+            ],
+            output='screen',
+        ),
+
         # --- Mission Controller ---
         Node(
             package='wardrone_mission',

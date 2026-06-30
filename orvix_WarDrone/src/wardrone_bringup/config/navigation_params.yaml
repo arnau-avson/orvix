@@ -4,6 +4,9 @@ waypoint_navigator:
     default_altitude_m: 10.0
     default_speed_m_s: 5.0
     mission_file: ""
+    # F7: Waypoint re-routing after obstacle avoidance
+    enable_rerouting: false
+    reroute_offset_m: 20.0
 
 safety_monitor:
   ros__parameters:
@@ -15,3 +18,18 @@ safety_monitor:
     action_on_warning: "RTL"
     action_on_critical: "LAND"
     obstacle_emergency_action: "HOLD"
+
+# F9: Wind estimator
+wind_estimator:
+  ros__parameters:
+    wind_filter_window_s: 10.0
+    max_safe_wind_m_s: 8.0
+    estimation_rate_hz: 2.0
+    min_altitude_for_estimation_m: 3.0
+
+# F1: Flight logger (black box)
+flight_logger:
+  ros__parameters:
+    log_dir: "~/wardrone_logs/"
+    log_rate_hz: 2.0
+    enable_logging: true

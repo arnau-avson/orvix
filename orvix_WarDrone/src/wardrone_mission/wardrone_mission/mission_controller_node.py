@@ -5,6 +5,9 @@ Top-level state machine that orchestrates the drone's mission:
 - Subscribes to vehicle state, tracking state, and safety events
 - Calls action servers for takeoff, land, and mission execution
 - Publishes mission state for monitoring
+- Enhanced preflight checklist with individual sensor validation
+- Battery-aware mission planning
+- Intelligent RTL with obstacle avoidance history
 """
 
 import time
@@ -17,9 +20,13 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
-from wardrone_interfaces.msg import VehicleState, TrackingTarget, Telemetry, MissionState as MissionStateMsg
+from wardrone_interfaces.msg import (
+    VehicleState, TrackingTarget, Telemetry,
+    MissionState as MissionStateMsg, PreflightStatus,
+    ObstacleArray, Waypoint,
+)
 from wardrone_interfaces.srv import Arm, SetFlightMode
-from wardrone_interfaces.action import Takeoff, Land, ExecuteMission
+from wardrone_interfaces.action import Takeoff, Land, ExecuteMission, GoToWaypoint
 
 from wardrone_mission.states import MissionState, MissionEvent, MissionType
 from wardrone_mission.state_machine import StateMachine, TransitionRecord
@@ -39,6 +46,19 @@ class MissionControllerNode(Node):
         self.declare_parameter('search_radius_m', 50.0)
         self.declare_parameter('takeoff_altitude_m', 10.0)
         self.declare_parameter('rtl_altitude_m', 15.0)
+
+        # Preflight parameters (F4)
+        self.declare_parameter('require_gps_3d_fix', True)
+        self.declare_parameter('min_battery_for_takeoff_pct', 25.0)
+        self.declare_parameter('min_gps_satellites', 6)
+
+        # Battery mission planning parameters (F3)
+        self.declare_parameter('battery_reserve_pct', 20.0)
+        self.declare_parameter('estimated_flight_time_per_pct_s', 30.0)
+
+        # Intelligent RTL parameters (F10)
+        self.declare_parameter('enable_intelligent_rtl', True)
+        self.declare_parameter('rtl_obstacle_clearance_m', 30.0)
 
         self._mission_file = self.get_parameter('mission_file').value
         self._search_timeout = self.get_parameter('search_timeout_s').value
@@ -64,11 +84,35 @@ class MissionControllerNode(Node):
         self._vehicle_in_air = False
         self._tracking_state = "SEARCHING"
 
+        # Extended telemetry cache (F4)
+        self._cached_battery_pct = 0.0
+        self._cached_gps_sats = 0
+        self._cached_gps_fix = 0
+        self._cached_gyro_ok = False
+        self._cached_accel_ok = False
+        self._cached_mag_ok = False
+        self._cached_local_pos_ok = False
+        self._cached_global_pos_ok = False
+        self._cached_home_pos_ok = False
+        self._cached_yaw_deg = 0.0
+
+        # Obstacle history for intelligent RTL (F10)
+        self._obstacle_positions = []  # list of (lat, lon)
+
+        # Intelligent RTL state (F10)
+        self._rtl_waypoints = []
+        self._rtl_wp_index = 0
+        self._intelligent_rtl_active = False
+
+        # Preflight cooldown (avoid spamming PREFLIGHT_FAIL with auto_arm)
+        self._preflight_fail_time = 0.0
+
         cb_group = ReentrantCallbackGroup()
 
         # Publishers
         self._pub_mission_state = self.create_publisher(MissionStateMsg, '/wardrone/mission/state', 10)
         self._pub_cmd_vel = self.create_publisher(Twist, '/wardrone/cmd_velocity', 10)
+        self._pub_preflight = self.create_publisher(PreflightStatus, '/wardrone/preflight/status', 10)
 
         # Subscribers
         self.create_subscription(VehicleState, '/wardrone/state', self._on_vehicle_state, 10)
@@ -76,10 +120,14 @@ class MissionControllerNode(Node):
         self.create_subscription(String, '/wardrone/tracking/state', self._on_tracking_state, 10)
         self.create_subscription(String, '/wardrone/safety/event', self._on_safety_event, 10)
 
+        # Obstacle subscription for RTL history (F10)
+        self.create_subscription(ObstacleArray, '/wardrone/obstacles', self._on_obstacles, 10)
+
         # Action clients
         self._takeoff_client = ActionClient(self, Takeoff, '/wardrone/takeoff', callback_group=cb_group)
         self._land_client = ActionClient(self, Land, '/wardrone/land', callback_group=cb_group)
         self._mission_client = ActionClient(self, ExecuteMission, '/wardrone/execute_mission', callback_group=cb_group)
+        self._goto_client = ActionClient(self, GoToWaypoint, '/wardrone/goto_waypoint', callback_group=cb_group)
 
         # Service clients
         self._arm_client = self.create_client(Arm, '/wardrone/arm', callback_group=cb_group)
@@ -198,14 +246,26 @@ class MissionControllerNode(Node):
         event_type = msg.data
         if event_type in ('CRITICAL_BATTERY', 'LINK_LOST'):
             self._sm.handle_event(MissionEvent.SAFETY_CRITICAL, event_type)
-        elif event_type in ('LOW_BATTERY', 'GPS_DEGRADED'):
+        elif event_type in ('LOW_BATTERY', 'GPS_DEGRADED', 'WIND_WARNING'):
             self._sm.handle_event(MissionEvent.SAFETY_WARNING, event_type)
 
     def _on_telemetry(self, msg: Telemetry):
-        """Cache current position for RTL home-reached detection."""
+        """Cache telemetry for preflight checks, position tracking, etc."""
         self._current_lat = msg.latitude_deg
         self._current_lon = msg.longitude_deg
         self._current_alt = msg.relative_altitude_m
+
+        # Extended cache (F4)
+        self._cached_battery_pct = msg.battery_remaining_pct
+        self._cached_gps_sats = msg.gps_num_satellites
+        self._cached_gps_fix = msg.gps_fix_type
+        self._cached_gyro_ok = msg.is_gyrometer_calibration_ok
+        self._cached_accel_ok = msg.is_accelerometer_calibration_ok
+        self._cached_mag_ok = msg.is_magnetometer_calibration_ok
+        self._cached_local_pos_ok = msg.is_local_position_ok
+        self._cached_global_pos_ok = msg.is_global_position_ok
+        self._cached_home_pos_ok = msg.is_home_position_ok
+        self._cached_yaw_deg = msg.yaw_deg
 
         # Record home position on first telemetry (before takeoff)
         if self._home_lat is None and msg.is_home_position_ok:
@@ -214,6 +274,19 @@ class MissionControllerNode(Node):
             self.get_logger().info(
                 f'Home position set: ({self._home_lat:.6f}, {self._home_lon:.6f})'
             )
+
+    def _on_obstacles(self, msg: ObstacleArray):
+        """Record obstacle positions for intelligent RTL (F10)."""
+        if self._sm.state != MissionState.NAVIGATE:
+            return
+        for obs in msg.obstacles:
+            if obs.threat_level >= 3 and obs.estimated_distance_m < 50.0:
+                from wardrone_navigation.geo_utils import estimate_obstacle_position
+                obs_lat, obs_lon = estimate_obstacle_position(
+                    self._current_lat, self._current_lon, self._cached_yaw_deg,
+                    obs.bearing_deg, obs.estimated_distance_m,
+                )
+                self._obstacle_positions.append((obs_lat, obs_lon))
 
     @staticmethod
     def _haversine(lat1, lon1, lat2, lon2):
@@ -231,9 +304,10 @@ class MissionControllerNode(Node):
         state = self._sm.state
 
         if state == MissionState.IDLE:
-            # Auto-start if configured
+            # Auto-start if configured (with cooldown after preflight fail)
             if self.get_parameter('auto_arm').value and self._mission_file:
-                self._sm.handle_event(MissionEvent.CMD_START, "Auto-start")
+                if time.time() - self._preflight_fail_time > 5.0:
+                    self._sm.handle_event(MissionEvent.CMD_START, "Auto-start")
 
         elif state == MissionState.PREFLIGHT:
             self._do_preflight()
@@ -253,11 +327,94 @@ class MissionControllerNode(Node):
         elif state == MissionState.LAND:
             self._do_land()
 
+    # --- F4: Enhanced Preflight ---
+
     def _do_preflight(self):
-        """Check if vehicle is ready for flight."""
-        if self._vehicle_healthy:
+        """Enhanced preflight checklist with individual sensor validation."""
+        status = PreflightStatus()
+        status.header.stamp = self.get_clock().now().to_msg()
+        all_ok = True
+        failures = []
+
+        # GPS check
+        require_3d = self.get_parameter('require_gps_3d_fix').value
+        min_sats = self.get_parameter('min_gps_satellites').value
+        gps_ok = True
+        if require_3d and self._cached_gps_fix < 3:
+            gps_ok = False
+            failures.append(f"GPS fix {self._cached_gps_fix} < 3")
+        if self._cached_gps_sats < min_sats:
+            gps_ok = False
+            failures.append(f"GPS sats {self._cached_gps_sats} < {min_sats}")
+        status.gps_ok = gps_ok
+        status.gps_detail = f"Fix={self._cached_gps_fix}, Sats={self._cached_gps_sats}"
+        if not gps_ok:
+            all_ok = False
+
+        # Battery check
+        min_batt = self.get_parameter('min_battery_for_takeoff_pct').value
+        batt_ok = self._cached_battery_pct > min_batt
+        status.battery_ok = batt_ok
+        status.battery_detail = f"{self._cached_battery_pct:.0f}% (min {min_batt:.0f}%)"
+        if not batt_ok:
+            all_ok = False
+            failures.append(f"Battery {self._cached_battery_pct:.0f}% <= {min_batt:.0f}%")
+
+        # Individual health checks
+        status.gyro_ok = self._cached_gyro_ok
+        status.accel_ok = self._cached_accel_ok
+        status.mag_ok = self._cached_mag_ok
+        status.local_position_ok = self._cached_local_pos_ok
+        status.global_position_ok = self._cached_global_pos_ok
+        status.home_position_ok = self._cached_home_pos_ok
+
+        for name, val in [("Gyro", status.gyro_ok), ("Accel", status.accel_ok),
+                          ("Mag", status.mag_ok), ("LocalPos", status.local_position_ok),
+                          ("GlobalPos", status.global_position_ok),
+                          ("HomePos", status.home_position_ok)]:
+            if not val:
+                all_ok = False
+                failures.append(f"{name} NOT OK")
+
+        # Mission loaded check
+        has_mission = bool(self._mission_file)
+        status.mission_loaded = has_mission
+        status.mission_detail = f"File: {self._mission_file}" if has_mission else "No mission file"
+        if self._mission_type != MissionType.TRACK_ONLY and not has_mission:
+            all_ok = False
+            failures.append("No mission file for navigation")
+
+        # F3: Battery-aware mission feasibility check
+        if all_ok and has_mission and self._mission_type != MissionType.TRACK_ONLY:
+            try:
+                from wardrone_navigation.mission_loader import load_mission, estimate_mission_feasibility
+                mission_data = load_mission(self._mission_file)
+                feasible, detail, _, _, _ = estimate_mission_feasibility(
+                    mission_data,
+                    self._current_lat, self._current_lon,
+                    self._cached_battery_pct,
+                    battery_reserve_pct=self.get_parameter('battery_reserve_pct').value,
+                    estimated_flight_time_per_pct_s=self.get_parameter('estimated_flight_time_per_pct_s').value,
+                )
+                status.battery_detail += f" | {detail}"
+                if not feasible:
+                    all_ok = False
+                    failures.append(f"Insufficient battery: {detail}")
+            except Exception as e:
+                all_ok = False
+                failures.append(f"Mission validation error: {e}")
+
+        status.passed = all_ok
+        status.failure_reason = "; ".join(failures) if failures else ""
+        self._pub_preflight.publish(status)
+
+        if all_ok:
             self._mission_start_time = time.time()
-            self._sm.handle_event(MissionEvent.PREFLIGHT_OK, "All health checks passed")
+            self._sm.handle_event(MissionEvent.PREFLIGHT_OK, "All preflight checks passed")
+        else:
+            self._preflight_fail_time = time.time()
+            self._sm.handle_event(MissionEvent.PREFLIGHT_FAIL, status.failure_reason)
+            self.get_logger().error(f"PREFLIGHT FAILED: {status.failure_reason}")
 
     def _do_takeoff(self):
         """Send takeoff action (once) and wait for completion."""
@@ -341,23 +498,26 @@ class MissionControllerNode(Node):
             self.get_logger().warn(f'Mission navigation ended: {result.message}')
             self._sm.handle_event(MissionEvent.MISSION_COMPLETE, result.message)
 
+    # --- F10: Intelligent RTL ---
+
     def _do_rtl(self):
-        """Command RTL flight mode and monitor distance to home."""
+        """RTL with obstacle avoidance or PX4 native RTL as fallback."""
         if not self._rtl_sent:
             self._rtl_sent = True
-            self.get_logger().info('Commanding RTL')
 
-            if self._mode_client.wait_for_service(timeout_sec=0.0):
-                req = SetFlightMode.Request()
-                req.mode = 'RTL'
-                future = self._mode_client.call_async(req)
-                future.add_done_callback(self._on_rtl_mode_response)
+            enable_intelligent = self.get_parameter('enable_intelligent_rtl').value
+            if (enable_intelligent and self._obstacle_positions
+                    and self._home_lat is not None):
+                self._do_intelligent_rtl()
             else:
-                self.get_logger().warn('SetFlightMode service not available')
-                self._rtl_sent = False
-                return
+                self._do_px4_rtl()
+            return
 
-        # Monitor distance to home
+        # Monitor for intelligent RTL waypoint progress
+        if self._intelligent_rtl_active:
+            return  # GoToWaypoint callbacks handle progress
+
+        # Monitor distance to home (for PX4 native RTL)
         if self._home_lat is not None:
             dist = self._haversine(
                 self._current_lat, self._current_lon,
@@ -365,6 +525,109 @@ class MissionControllerNode(Node):
             )
             if dist < 5.0 and self._current_alt < 3.0:
                 self._sm.handle_event(MissionEvent.HOME_REACHED, f"Near home ({dist:.1f}m)")
+
+    def _do_px4_rtl(self):
+        """Delegate RTL to PX4 native mode."""
+        self.get_logger().info('Commanding PX4 native RTL')
+        if self._mode_client.wait_for_service(timeout_sec=0.0):
+            req = SetFlightMode.Request()
+            req.mode = 'RTL'
+            future = self._mode_client.call_async(req)
+            future.add_done_callback(self._on_rtl_mode_response)
+        else:
+            self.get_logger().warn('SetFlightMode service not available')
+            self._rtl_sent = False
+
+    def _do_intelligent_rtl(self):
+        """Compute return path avoiding known obstacles."""
+        from wardrone_navigation.geo_utils import is_point_near_path, compute_reroute_waypoint
+
+        rtl_alt = self.get_parameter('rtl_altitude_m').value
+        clearance = self.get_parameter('rtl_obstacle_clearance_m').value
+
+        self.get_logger().info(
+            f'Intelligent RTL: {len(self._obstacle_positions)} obstacles in history'
+        )
+
+        # Build waypoint list
+        rtl_waypoints = []
+
+        # Step 1: Current position at RTL altitude
+        rtl_waypoints.append((self._current_lat, self._current_lon, rtl_alt))
+
+        # Step 2: For each obstacle near the direct path home, add offset waypoint
+        for obs_lat, obs_lon in self._obstacle_positions:
+            if is_point_near_path(
+                self._current_lat, self._current_lon,
+                self._home_lat, self._home_lon,
+                obs_lat, obs_lon, clearance,
+            ):
+                result = compute_reroute_waypoint(
+                    self._current_lat, self._current_lon,
+                    self._home_lat, self._home_lon,
+                    obstacle_bearing_deg=0.0,
+                    offset_distance_m=clearance,
+                )
+                if result:
+                    rtl_waypoints.append((result[0], result[1], rtl_alt))
+
+        # Step 3: Home position
+        rtl_waypoints.append((self._home_lat, self._home_lon, rtl_alt))
+
+        self._rtl_waypoints = rtl_waypoints
+        self._rtl_wp_index = 0
+        self._intelligent_rtl_active = True
+        self._send_next_rtl_waypoint()
+
+    def _send_next_rtl_waypoint(self):
+        """Send the next RTL waypoint via GoToWaypoint action."""
+        if self._rtl_wp_index >= len(self._rtl_waypoints):
+            # All RTL waypoints reached
+            self._intelligent_rtl_active = False
+            self._sm.handle_event(MissionEvent.HOME_REACHED, "Intelligent RTL complete")
+            return
+
+        lat, lon, alt = self._rtl_waypoints[self._rtl_wp_index]
+        self.get_logger().info(
+            f'RTL waypoint {self._rtl_wp_index + 1}/{len(self._rtl_waypoints)}: '
+            f'({lat:.6f}, {lon:.6f}, {alt:.1f}m)'
+        )
+
+        if not self._goto_client.wait_for_server(timeout_sec=0.0):
+            self.get_logger().warn('GoToWaypoint not available, falling back to PX4 RTL')
+            self._intelligent_rtl_active = False
+            self._do_px4_rtl()
+            return
+
+        goal = GoToWaypoint.Goal()
+        goal.waypoint = Waypoint()
+        goal.waypoint.latitude_deg = lat
+        goal.waypoint.longitude_deg = lon
+        goal.waypoint.altitude_m = alt
+        goal.waypoint.speed_m_s = 5.0
+
+        future = self._goto_client.send_goal_async(goal)
+        future.add_done_callback(self._on_rtl_wp_goal_response)
+
+    def _on_rtl_wp_goal_response(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().warn('RTL waypoint rejected, falling back to PX4 RTL')
+            self._intelligent_rtl_active = False
+            self._do_px4_rtl()
+            return
+        result_future = goal_handle.get_result_async()
+        result_future.add_done_callback(self._on_rtl_wp_result)
+
+    def _on_rtl_wp_result(self, future):
+        result = future.result().result
+        if result.success:
+            self._rtl_wp_index += 1
+            self._send_next_rtl_waypoint()
+        else:
+            self.get_logger().warn(f'RTL waypoint failed: {result.message}, falling back to PX4 RTL')
+            self._intelligent_rtl_active = False
+            self._do_px4_rtl()
 
     def _on_rtl_mode_response(self, future):
         result = future.result()
@@ -403,7 +666,6 @@ class MissionControllerNode(Node):
         result = future.result().result
         if result.success:
             self.get_logger().info('Landing complete')
-            # LANDED event is also fired by _on_vehicle_state when is_in_air goes false
         else:
             self.get_logger().error(f'Land action failed: {result.message}')
             self._land_sent = False

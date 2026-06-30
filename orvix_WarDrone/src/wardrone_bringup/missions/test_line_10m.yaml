@@ -7,4 +7,4 @@ mission:
   waypoints:
     - latitude_deg: 47.39783
       longitude_deg: 8.54559
-      altitude_m: 10.0
+      altitude_m: 0.5

@@ -12,25 +12,13 @@ from rclpy.node import Node
 from rclpy.action import ActionServer, GoalResponse, CancelResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 
-from wardrone_interfaces.msg import Telemetry, VehicleState, Waypoint
+from std_msgs.msg import String, Bool
+from wardrone_interfaces.msg import Telemetry, VehicleState, Waypoint, ObstacleArray
 from wardrone_interfaces.srv import LoadMission
 from wardrone_interfaces.action import ExecuteMission, GoToWaypoint
 
 from wardrone_navigation.mission_loader import load_mission, MissionLoadError, MissionData
-
-
-def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculate the great-circle distance between two points in meters."""
-    R = 6371000.0  # Earth radius in meters
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-
-    a = (math.sin(dphi / 2.0) ** 2 +
-         math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2.0) ** 2)
-    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-    return R * c
+from wardrone_navigation.geo_utils import haversine_distance, compute_reroute_waypoint
 
 
 class WaypointNavigatorNode(Node):
@@ -43,10 +31,14 @@ class WaypointNavigatorNode(Node):
         self.declare_parameter('default_altitude_m', 10.0)
         self.declare_parameter('default_speed_m_s', 5.0)
         self.declare_parameter('mission_file', '')
+        self.declare_parameter('enable_rerouting', False)
+        self.declare_parameter('reroute_offset_m', 20.0)
 
         self._acceptance_radius = self.get_parameter('waypoint_acceptance_radius_m').value
         self._default_alt = self.get_parameter('default_altitude_m').value
         self._default_speed = self.get_parameter('default_speed_m_s').value
+        self._enable_rerouting = self.get_parameter('enable_rerouting').value
+        self._reroute_offset = self.get_parameter('reroute_offset_m').value
 
         # State
         self._current_mission: MissionData = None
@@ -55,6 +47,11 @@ class WaypointNavigatorNode(Node):
         self._current_alt = 0.0
         self._is_armed = False
         self._mission_active = False
+
+        # Rerouting state (F7)
+        self._last_obstacle_bearing = None
+        self._avoidance_active = False
+        self._avoidance_just_cleared = False
 
         cb_group = ReentrantCallbackGroup()
 
@@ -65,6 +62,12 @@ class WaypointNavigatorNode(Node):
         # Subscribers
         self.create_subscription(Telemetry, '/wardrone/telemetry', self._on_telemetry, 10)
         self.create_subscription(VehicleState, '/wardrone/state', self._on_state, 10)
+
+        # Rerouting subscribers (F7)
+        self.create_subscription(Bool, '/wardrone/obstacle_avoidance/active',
+                                 self._on_avoidance_active, 10)
+        self.create_subscription(ObstacleArray, '/wardrone/obstacles',
+                                 self._on_obstacles_nav, 10)
 
         # Services
         self.create_service(LoadMission, '/wardrone/load_mission', self._handle_load_mission,
@@ -253,6 +256,39 @@ class WaypointNavigatorNode(Node):
                 self.get_logger().info(f'Waypoint {wp_index+1} reached (dist={distance:.1f}m)')
                 return True
 
+            # F7: Check if we need to reroute after obstacle avoidance
+            if (self._enable_rerouting and self._avoidance_just_cleared
+                    and self._last_obstacle_bearing is not None):
+                self._avoidance_just_cleared = False
+                reroute = compute_reroute_waypoint(
+                    self._current_lat, self._current_lon,
+                    wp.latitude_deg, wp.longitude_deg,
+                    self._last_obstacle_bearing,
+                    self._reroute_offset,
+                )
+                if reroute:
+                    self.get_logger().info(
+                        f'Rerouting via ({reroute[0]:.6f}, {reroute[1]:.6f})'
+                    )
+                    temp_cmd = Waypoint()
+                    temp_cmd.latitude_deg = reroute[0]
+                    temp_cmd.longitude_deg = reroute[1]
+                    temp_cmd.altitude_m = float(wp.altitude_m)
+                    temp_cmd.speed_m_s = float(wp.speed_m_s if wp.speed_m_s > 0 else self._default_speed)
+                    # Navigate to reroute waypoint first
+                    while True:
+                        d = haversine_distance(
+                            self._current_lat, self._current_lon,
+                            reroute[0], reroute[1]
+                        )
+                        if d < acceptance or goal_handle.is_cancel_requested:
+                            break
+                        self._pub_cmd_goto.publish(temp_cmd)
+                        await self._sleep(0.2)
+                self._last_obstacle_bearing = None
+            else:
+                self._avoidance_just_cleared = False
+
             # Send GPS goto command to MAVSDK bridge
             cmd = Waypoint()
             cmd.latitude_deg = wp.latitude_deg
@@ -324,6 +360,20 @@ class WaypointNavigatorNode(Node):
             wp.latitude_deg, wp.longitude_deg
         )
         return result
+
+    # --- F7: Rerouting callbacks ---
+
+    def _on_avoidance_active(self, msg: Bool):
+        was_active = self._avoidance_active
+        self._avoidance_active = msg.data
+        if was_active and not msg.data:
+            self._avoidance_just_cleared = True
+
+    def _on_obstacles_nav(self, msg: ObstacleArray):
+        if msg.obstacles:
+            max_threat = max(msg.obstacles, key=lambda o: o.threat_level)
+            if max_threat.threat_level >= 3:
+                self._last_obstacle_bearing = max_threat.bearing_deg
 
     async def _sleep(self, seconds: float):
         """Async sleep using ROS clock."""

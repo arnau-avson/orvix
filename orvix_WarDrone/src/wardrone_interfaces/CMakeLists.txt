@@ -24,6 +24,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/VioStatus.msg"
   "msg/Obstacle.msg"
   "msg/ObstacleArray.msg"
+  "msg/PreflightStatus.msg"
+  "msg/WindEstimate.msg"
   # Services
   "srv/Arm.srv"
   "srv/SetFlightMode.srv"

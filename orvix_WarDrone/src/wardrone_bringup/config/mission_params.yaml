@@ -8,3 +8,13 @@ mission_controller:
     search_radius_m: 50.0
     takeoff_altitude_m: 10.0
     rtl_altitude_m: 15.0
+    # F4: Enhanced preflight checks
+    require_gps_3d_fix: true
+    min_battery_for_takeoff_pct: 25.0
+    min_gps_satellites: 6
+    # F3: Battery-aware mission planning
+    battery_reserve_pct: 20.0
+    estimated_flight_time_per_pct_s: 30.0
+    # F10: Intelligent RTL
+    enable_intelligent_rtl: true
+    rtl_obstacle_clearance_m: 30.0

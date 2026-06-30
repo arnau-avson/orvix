@@ -111,3 +111,65 @@ def validate_mission(mission: MissionData) -> List[str]:
         if wp.altitude_m > 120.0:
             warnings.append(f"Waypoint {i}: altitude {wp.altitude_m}m exceeds 120m (EASA limit)")
     return warnings
+
+
+def estimate_mission_feasibility(
+    mission: MissionData,
+    current_lat: float,
+    current_lon: float,
+    battery_remaining_pct: float,
+    battery_reserve_pct: float = 20.0,
+    estimated_flight_time_per_pct_s: float = 30.0,
+    average_speed_m_s: float = 5.0,
+) -> tuple:
+    """Estimate whether battery is sufficient for the full mission + RTL.
+
+    Returns:
+        (feasible, detail, total_distance_m, estimated_time_s, battery_needed_pct)
+    """
+    from wardrone_navigation.geo_utils import haversine_distance
+
+    if not mission.waypoints:
+        return False, "No waypoints in mission", 0.0, 0.0, 0.0
+
+    # Total mission distance: start -> WP1 -> WP2 -> ... -> WPN
+    total_distance = 0.0
+    prev_lat, prev_lon = current_lat, current_lon
+
+    for wp in mission.waypoints:
+        d = haversine_distance(prev_lat, prev_lon, wp.latitude_deg, wp.longitude_deg)
+        total_distance += d
+        prev_lat, prev_lon = wp.latitude_deg, wp.longitude_deg
+
+    # RTL distance: last waypoint -> home
+    rtl_distance = haversine_distance(prev_lat, prev_lon, current_lat, current_lon)
+    total_distance += rtl_distance
+
+    # Loiter time
+    loiter_time = sum(wp.loiter_time_s for wp in mission.waypoints)
+
+    # Estimate flight time
+    if average_speed_m_s <= 0:
+        average_speed_m_s = 5.0
+    flight_time_s = (total_distance / average_speed_m_s) + loiter_time
+
+    # Battery needed
+    if estimated_flight_time_per_pct_s <= 0:
+        estimated_flight_time_per_pct_s = 30.0
+    battery_needed_pct = flight_time_s / estimated_flight_time_per_pct_s
+
+    # Available battery after reserve
+    available_pct = battery_remaining_pct - battery_reserve_pct
+
+    feasible = battery_needed_pct <= available_pct
+
+    detail = (
+        f"Dist: {total_distance:.0f}m "
+        f"(mission {total_distance - rtl_distance:.0f}m + RTL {rtl_distance:.0f}m), "
+        f"Est. time: {flight_time_s:.0f}s, "
+        f"Battery needed: {battery_needed_pct:.1f}%, "
+        f"Available: {available_pct:.1f}% "
+        f"({battery_remaining_pct:.0f}% - {battery_reserve_pct:.0f}% reserve)"
+    )
+
+    return feasible, detail, total_distance, flight_time_s, battery_needed_pct
